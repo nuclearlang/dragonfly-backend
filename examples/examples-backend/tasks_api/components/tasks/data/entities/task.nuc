@@ -1,0 +1,19 @@
+// A task (table tasks), maybe in a project and with tags.
+@entity("tasks")
+Task()
+  @primary(generated = true)
+  id: int
+  @column(length = 200)
+  title: string
+  done: boolean = false
+  // 1 high, 2 normal, 3 low
+  priority: int = 2
+  @created()
+  createdAt?: DateTime
+  // its project, loaded with relations("project"); projectId is its column
+  @manyToOne(inverse = "tasks", onDelete = "cascade")
+  project?: Project
+  projectId?: int
+  @manyToMany(inverse = "tasks")
+  @joinTable()
+  tags?: Tag[]

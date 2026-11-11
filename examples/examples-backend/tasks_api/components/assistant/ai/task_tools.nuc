@@ -1,0 +1,24 @@
+// The tools the assistant uses to read and change the tasks (through the tasks component).
+tools TaskTools(tasks: TasksAppComponent)
+  // Lists the pending tasks, one per line: id, priority (1 high, 2 normal, 3 low) and title.
+  pendingTasks() string
+    match ~tasks.list(false)
+      Ok(found) -> describe(found)
+      Err(e) -> e.message
+
+  // Creates a task with a title and a priority (1 high, 2 normal, 3 low).
+  addTask(title: string, priority: int = 2) string
+    match ~tasks.create(NewTask(title = title, priority = priority))
+      Ok(task) -> "created task ${task.id}: ${task.title}"
+      Err(e) -> e.message
+
+  // Marks the task with that id as done.
+  completeTask(id: int) string
+    match ~tasks.update(id, TaskChanges(done = true))
+      Ok(task) -> "task ${task.id} is done: ${task.title}"
+      Err(e) -> e.message
+
+  describe(found: Task[]) string
+    if found.length == 0
+      return "there are no pending tasks"
+    found.map((task: Task) => "${task.id} · priority ${task.priority} · ${task.title}").join("\n")

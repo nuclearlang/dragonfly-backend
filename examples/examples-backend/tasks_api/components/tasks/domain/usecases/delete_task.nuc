@@ -1,0 +1,6 @@
+usecase DeleteTask(tasks: TaskRepository)
+  exec(id: int) Result<Error, Removed>
+    removed = ~tasks.remove(id)
+    if not removed
+      return Err(NotFound("task ${id} not found"))
+    Ok(Removed(id = id))

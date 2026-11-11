@@ -1,0 +1,10 @@
+// A character of the show (table characters).
+@entity("characters")
+Character()
+  @primary(generated = true)
+  id: int
+  @column(length = 100, unique = true)
+  name: string
+  @column(length = 20)
+  status: string = "alive"
+  species?: string

@@ -1,0 +1,16 @@
+tests Characters
+  @test("creates a character and finds it")
+  createsAndFinds() void
+    app = inject<CharactersAppComponent>()
+    made = ~app.create(NewCharacter(name = "Rick"))
+    expect(made.isOk)
+    found = ~app.character(made.value.id)
+    expect(found.value.name == "Rick")
+
+  @test("a repeated name is a conflict")
+  repeatedName() void
+    app = inject<CharactersAppComponent>()
+    ~app.create(NewCharacter(name = "Morty"))
+    again = ~app.create(NewCharacter(name = "Morty"))
+    expect(again.isErr)
+    expect(again.error.status == 409)

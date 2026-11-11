@@ -1,0 +1,17 @@
+// A message for the assistant; `thread` keeps one conversation.
+ChatRequest
+  @minLength(1)
+  message: string
+  thread: string = "default"
+
+ChatReply
+  answer: string
+
+// A goal for the planner.
+PlanRequest
+  @minLength(1)
+  goal: string
+
+PlanReply
+  titles: string[]
+  created: int

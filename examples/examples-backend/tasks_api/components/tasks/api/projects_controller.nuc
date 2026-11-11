@@ -1,0 +1,15 @@
+// Projects: POST /projects, GET /projects/:id (with its tasks and their tags), POST /projects/:id/close/:into.
+@controller("projects")
+controller ProjectsController(tasks: TasksAppComponent)
+  @post()
+  create(input: NewProject) Result<Error, Project>
+    ~tasks.addProject(input)
+
+  @get("{id}")
+  one(id: int) Result<Error, Project>
+    ~tasks.project(id)
+
+  @post("{id}/close/{into}")
+  @status(200)
+  close(id: int, into: int) Result<Error, Moved>
+    ~tasks.close(id, into)

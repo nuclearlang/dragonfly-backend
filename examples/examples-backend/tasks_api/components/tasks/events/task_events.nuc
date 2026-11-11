@@ -1,0 +1,7 @@
+// Listens to the new tasks (Kafka when it is configured; in this process otherwise).
+listener TaskEvents
+  created: string[] = []
+
+  @consumer("tasks.created")
+  onCreated(event: <string, any>) void
+    created.add(event["title"]!)

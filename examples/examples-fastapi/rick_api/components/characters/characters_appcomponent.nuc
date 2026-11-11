@@ -1,0 +1,5 @@
+// What other components and the API see of characters.
+appcomponent CharactersAppComponent
+  character() = GetCharacter.exec
+  create() = CreateCharacter.exec
+  alive() = AliveCharacters.exec

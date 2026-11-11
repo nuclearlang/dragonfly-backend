@@ -1,0 +1,3 @@
+usecase GetTask(tasks: TaskRepository)
+  exec(id: int) Result<Error, Task>
+    ~tasks.find(id)

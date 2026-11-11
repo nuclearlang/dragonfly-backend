@@ -1,0 +1,27 @@
+// The CRUD of tasks: GET /tasks?done=false, GET /tasks/page?page=1&size=20, GET /tasks/:id, POST /tasks,
+// PATCH /tasks/:id, DELETE /tasks/:id.
+@controller("tasks")
+controller TasksController(tasks: TasksAppComponent)
+  @get()
+  all(done?: boolean) Result<Error, Task[]>
+    ~tasks.list(done)
+
+  @get("page")
+  paged(page: int = 1, size: int = 20) Result<Error, Page<Task>>
+    ~tasks.page(page, size)
+
+  @get("{id}")
+  one(id: int) Result<Error, Task>
+    ~tasks.task(id)
+
+  @post()
+  create(input: NewTask) Result<Error, Task>
+    ~tasks.create(input)
+
+  @patch("{id}")
+  change(id: int, changes: TaskChanges) Result<Error, Task>
+    ~tasks.update(id, changes)
+
+  @delete("{id}")
+  remove(id: int) Result<Error, Removed>
+    ~tasks.remove(id)

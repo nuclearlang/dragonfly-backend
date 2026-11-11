@@ -1,0 +1,7 @@
+// What the API receives to create a character.
+NewCharacter
+  @minLength(1)
+  @maxLength(100)
+  name: string
+  status: string = "alive"
+  species?: string

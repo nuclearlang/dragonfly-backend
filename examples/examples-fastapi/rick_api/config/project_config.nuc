@@ -1,0 +1,6 @@
+// The connections of the whole app: a database and a chat model.
+appConfig ProjectConfig
+  connections: Connection[] = [
+    SQLite(file = env("DATABASE", "rick.sqlite"), createTables = true),
+    Ollama(model = env("CHAT_MODEL", "llama3.2")),
+  ]

@@ -1,0 +1,60 @@
+# The backend platform: fastapi and nestjs against the examples, the runtimes' tests, the migrations, a live run.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: nuclearlang/nuclear
+          path: nuclear
+      - uses: actions/checkout@v4
+        with:
+          path: nuclear/dragonfly-backend
+      - name: The other repositories of the working tree
+        run: |
+          git clone --depth 1 https://github.com/nuclearlang/dragonfly nuclear/dragonfly
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Node tools of the checks
+        run: cd nuclear/tools/node && npm ci --no-audit --no-fund
+      - name: Python tools of the checks
+        run: |
+          cd nuclear
+          python -m venv tools/python/.venv
+          tools/python/.venv/bin/pip install -q -r tools/python/requirements.txt
+          tools/python/.venv/bin/pip install -q -e dragonfly-backend/packages/dragonfly-py
+      - name: "The dialects: examples and goldens"
+        working-directory: nuclear
+        run: |
+          cargo test
+      - name: "The specs' equivalences"
+        working-directory: nuclear
+        run: |
+          python3 tools/spec-check/check.py dragonfly-backend/spec/fastapi.md fastapi python
+          python3 tools/spec-check/check.py dragonfly-backend/spec/nestjs.md nestjs typescript
+      - name: "fastapi: pyright, pytest, migrations, a live run"
+        working-directory: nuclear
+        run: |
+          sh dragonfly-backend/tools/fastapi-check/check.sh
+      - name: "nestjs: tsc, node:test, migrations, a live run"
+        working-directory: nuclear
+        run: |
+          sh dragonfly-backend/tools/nestjs-check/check.sh

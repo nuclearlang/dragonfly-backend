@@ -1,0 +1,20 @@
+// The tasks table: find, findAll, save and remove come with the kind.
+repository TaskRepository
+  byState(done: boolean) Task[]
+    where({ "done": done })
+    orderBy("priority")
+    getMany()
+
+  byTitle(title: string) Result<Error, Task>
+    where({ "title": title })
+    getOne()
+
+  // One page of every task, the newest last.
+  page(page: int, size: int) Page<Task>
+    orderBy("id")
+    paginate(page, size)
+
+  // Moves the tasks of one project to another; the number moved.
+  move(source: int, target: int) int
+    where({ "projectId": source })
+    update({ "projectId": target })

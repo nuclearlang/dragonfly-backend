@@ -1,0 +1,5 @@
+// The state of the planner graph.
+PlanState
+  goal: string
+  titles: string[]
+  created: int

@@ -1,0 +1,45 @@
+# The contract of the backend platform (spec/backend.md, ADR-0093): what every dialect of dialects/backend/
+# must implement, identically. The loader refuses a dialect whose kinds, consumed decorators or plugins leave
+# this list, and reports the platform plugins a dialect does not bring yet.
+[platform]
+# the dialect a new project of this platform gets when none is named (`dragonfly new -p <platform>`)
+default_dialect = "fastapi"
+name = "backend"
+description = "HTTP APIs, data, events and AI agents"
+kinds = [
+  "appConfig", "config", "entity", "repository", "model", "usecase", "appcomponent", "service", "aggregate",
+  "controller", "listener", "tools", "agent", "state", "graph", "tests",
+]
+# the decorators a project may write (a dialect consumes them in its templates or writes them as the target's)
+decorators = [
+  "entity", "primary", "column", "created", "updated", "repository",
+  "manyToOne", "oneToMany", "manyToMany", "oneToOne", "joinTable", "joinColumn", "transactional",
+  "controller", "get", "post", "put", "patch", "delete", "status",
+  "consumer", "start", "next", "state", "test",
+  "required", "email", "url", "minLength", "maxLength", "min", "max", "pattern",
+]
+plugins = ["sqlite", "postgres", "mysql", "mariadb", "redis", "kafka", "events", "ai", "openai", "ollama", "chroma"]
+
+# The arguments and the rules of the data decorators (ADR-0100), the same for every backend dialect.
+[decorators.args]
+primary = ["generated", "length"]
+manyToOne = ["inverse", "onDelete"]
+oneToMany = ["inverse!"]
+manyToMany = ["inverse"]
+oneToOne = ["inverse", "onDelete"]
+joinTable = []
+joinColumn = []
+
+# N0308: a relation field is optional (there only when loaded), its type is an entity, `inverse` names a field of it;
+# a @manyToOne (or the @joinColumn side of a @oneToOne) keeps its column in the field `<name>Id`; one side of a
+# @manyToMany has @joinTable, one side of a @oneToOne has @joinColumn.
+[decorators.fields]
+manyToOne = { optional = true, list = false, target = "entity", sibling = "{name}Id", inverse = "inverse" }
+oneToMany = { optional = true, list = true, target = "entity", inverse = "inverse" }
+manyToMany = { optional = true, list = true, target = "entity", inverse = "inverse", with = "joinTable" }
+oneToOne = { optional = true, list = false, target = "entity", inverse = "inverse", with = "joinColumn" }
+joinColumn = { sibling = "{name}Id" }
+
+# N0309: a removed decorator and what replaces it
+[decorators.replaced]
+generated = "@primary(generated = true) (ADR-0100)"

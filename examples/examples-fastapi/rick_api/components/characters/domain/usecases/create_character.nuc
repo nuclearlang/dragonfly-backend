@@ -1,0 +1,8 @@
+// Creates a character; the name must be new.
+usecase CreateCharacter(characters: CharacterRepository)
+  exec(input: NewCharacter) Result<Error, Character>
+    taken = ~characters.where({ "name": input.name }).exists()
+    if taken
+      return Err(Conflict("${input.name} already exists"))
+    saved = ~characters.save(Character(name = input.name, status = input.status, species = input.species))
+    Ok(saved)

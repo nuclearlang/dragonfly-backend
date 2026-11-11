@@ -1,0 +1,24 @@
+{
+"format": 1,
+"libraries": ["@nestjs/sequelize"],
+"reexports": {},
+"symbols": {
+  "InjectConnection": 0,
+  "InjectModel": 0,
+  "SequelizeModule": 0,
+  "SequelizeModuleAsyncOptions": 0,
+  "SequelizeModuleOptions": 0,
+  "SequelizeOptionsFactory": 0,
+  "generateString": 0,
+  "getConnectionName": 0,
+  "getConnectionPrefix": 0,
+  "getConnectionToken": 0,
+  "getModelToken": 0,
+  "handleRetry": 0
+},
+"classes": {
+  "SequelizeModule": {"supers":[],"members":[],"params":[]},
+  "SequelizeModuleAsyncOptions": {"supers":["__type"],"members":["imports","inject","name","useClass","useExisting","useFactory"],"kind":"interface"},
+  "SequelizeOptionsFactory": {"supers":[],"members":["createSequelizeOptions"],"kind":"interface"}
+}
+}

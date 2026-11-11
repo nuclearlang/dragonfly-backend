@@ -1,0 +1,6 @@
+// Every task, or only the pending (done = false) or finished ones.
+usecase ListTasks(tasks: TaskRepository)
+  exec(done?: boolean) Result<Error, Task[]>
+    if done == null
+      return Ok(~tasks.findAll())
+    Ok(~tasks.byState(done))

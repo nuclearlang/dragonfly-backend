@@ -1,0 +1,7 @@
+// The projects table.
+repository ProjectRepository
+  // A project with its tasks and their tags.
+  withTasks(id: int) Result<Error, Project>
+    where({ "id": id })
+    relations("tasks.tags")
+    getOne()

@@ -1,0 +1,5 @@
+Question
+  text: string
+
+Answer
+  text: string

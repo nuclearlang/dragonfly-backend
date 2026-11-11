@@ -1,0 +1,50 @@
+{{#optional}}
+@IsOptional()
+{{/optional}}
+{{#tinfo.is.string}}
+@IsString()
+{{/tinfo.is.string}}
+{{#tinfo.is.int}}
+@IsInt()
+{{/tinfo.is.int}}
+{{#tinfo.is.double}}
+@IsNumber()
+{{/tinfo.is.double}}
+{{#tinfo.is.number}}
+@IsNumber()
+{{/tinfo.is.number}}
+{{#tinfo.is.boolean}}
+@IsBoolean()
+{{/tinfo.is.boolean}}
+{{#tinfo.list}}
+@IsArray()
+{{/tinfo.list}}
+{{#tinfo.model}}
+@ValidateNested({{#tinfo.list}}{ each: true }{{/tinfo.list}})
+@Type(() => {{tinfo.item}})
+{{/tinfo.model}}
+{{#decor.required}}
+@IsNotEmpty({{#decor.required.message}}{ message: {{decor.required.message}} }{{/decor.required.message}})
+{{/decor.required}}
+{{#decor.email}}
+@IsEmail()
+{{/decor.email}}
+{{#decor.url}}
+@IsUrl()
+{{/decor.url}}
+{{#decor.minLength}}
+@MinLength({{decor.minLength.arg}})
+{{/decor.minLength}}
+{{#decor.maxLength}}
+@MaxLength({{decor.maxLength.arg}})
+{{/decor.maxLength}}
+{{#decor.min}}
+@Min({{decor.min.arg}})
+{{/decor.min}}
+{{#decor.max}}
+@Max({{decor.max.arg}})
+{{/decor.max}}
+{{#decor.pattern}}
+@Matches({{decor.pattern.arg}})
+{{/decor.pattern}}
+{{name}}{{#optional}}?{{/optional}}{{^optional}}{{^default}}!{{/default}}{{/optional}}: {{type}}{{#default}} = {{default}}{{/default}};

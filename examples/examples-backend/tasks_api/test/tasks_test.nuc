@@ -1,0 +1,66 @@
+tests Tasks
+  @test("creates, changes, lists and deletes a task")
+  crud() void
+    tasks = inject<TasksAppComponent>()
+    made = ~tasks.create(NewTask(title = "buy milk", priority = 1))
+    expect(made.isOk)
+    id = made.value.id
+    changed = ~tasks.update(id, TaskChanges(done = true))
+    expect(changed.value.done)
+    pending = ~tasks.list(false)
+    expect(pending.value.length == 0)
+    removed = ~tasks.remove(id)
+    expect(removed.isOk)
+    again = ~tasks.task(id)
+    expect(again.error.status == 404)
+
+  @test("a repeated title is a conflict")
+  repeatedTitle() void
+    tasks = inject<TasksAppComponent>()
+    ~tasks.create(NewTask(title = "call mom"))
+    again = ~tasks.create(NewTask(title = "call mom"))
+    expect(again.error.status == 409)
+
+  @test("a new task is published to the listeners")
+  published() void
+    tasks = inject<TasksAppComponent>()
+    ~tasks.create(NewTask(title = "write the report"))
+    events = inject<TaskEvents>()
+    expect("write the report" in events.created)
+
+  @test("the tools read and change the tasks")
+  toolsWork() void
+    tools = inject<TaskTools>()
+    expect(~tools.pendingTasks() == "there are no pending tasks")
+    expect((~tools.addTask("pay the rent", 1)).startsWith("created task"))
+    expect("pay the rent" in (~tools.pendingTasks()))
+    expect((~tools.completeTask(1)).startsWith("task 1 is done"))
+    all: any[] = tools.tools()
+    expect(all.length == 3)
+
+  @test("a project has its tasks; closing it moves them in one transaction")
+  projects() void
+    tasks = inject<TasksAppComponent>()
+    home = (~tasks.addProject(NewProject(name = "home"))).value
+    work = (~tasks.addProject(NewProject(name = "work"))).value
+    ~tasks.create(NewTask(title = "paint the door", projectId = home.id))
+    loaded = ~tasks.project(home.id)
+    expect(loaded.value.tasks!.length == 1)
+    missing = ~tasks.close(home.id, 999)
+    expect(missing.error.status == 404)
+    expect((~tasks.project(home.id)).isOk)
+    closed = ~tasks.close(home.id, work.id)
+    expect(closed.value.count == 1)
+    expect((~tasks.project(home.id)).error.status == 404)
+    expect((~tasks.project(work.id)).value.tasks!.length == 1)
+
+  @test("the tasks come in pages")
+  pages() void
+    tasks = inject<TasksAppComponent>()
+    for title in ["one", "two", "three"]
+      ~tasks.create(NewTask(title = title))
+    first = (~tasks.page(1, 2)).value
+    items: Task[] = first.items
+    expect(items.length == 2)
+    expect(first.total == 3)
+    expect(first.pages == 2)

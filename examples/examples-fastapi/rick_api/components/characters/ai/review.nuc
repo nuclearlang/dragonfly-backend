@@ -1,0 +1,16 @@
+// Asks the guide, then judges the answer.
+@state(ReviewState)
+graph Review(guide: Guide)
+  @start
+  @next("judge")
+  ask(state: ReviewState) <string, string>
+    answer = ~guide.ask(state.question)
+    { "answer": answer }
+
+  @next("end")
+  judge(state: ReviewState) <string, string>
+    verdict = if state.answer.length > 0
+      "answered"
+    else
+      "empty"
+    { "verdict": verdict }

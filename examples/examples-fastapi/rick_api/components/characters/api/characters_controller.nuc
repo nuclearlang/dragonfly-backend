@@ -1,0 +1,13 @@
+@controller("characters")
+controller CharactersController(characters: CharactersAppComponent)
+  @get()
+  alive() Result<Error, Character[]>
+    ~characters.alive()
+
+  @get("{id}")
+  one(id: int) Result<Error, Character>
+    ~characters.character(id)
+
+  @post()
+  create(input: NewCharacter) Result<Error, Character>
+    ~characters.create(input)

@@ -1,0 +1,32 @@
+// What the API receives to create a task.
+NewTask
+  @minLength(1)
+  @maxLength(200)
+  title: string
+  @min(1)
+  @max(3)
+  priority: int = 2
+  projectId?: int
+
+// The changes of a task: only the fields that come are changed.
+TaskChanges
+  @minLength(1)
+  title?: string
+  done?: boolean
+  @min(1)
+  @max(3)
+  priority?: int
+
+// The answer of a delete.
+Removed
+  id: int
+
+// What the API receives to create a project.
+NewProject
+  @minLength(1)
+  @maxLength(100)
+  name: string
+
+// How many tasks a close moved.
+Moved
+  count: int

@@ -1,0 +1,6 @@
+// The platform this project is written for and the dialect it is built with (ADR-0093).
+dragonfly(platform = "backend", dialect = "fastapi")
+app(name = "rick_api", description = "Characters of the show: a REST API and a guide agent.", version = "0.1.0")
+
+// The optional parts this project uses: only these go to the generated project.
+plugins(sqlite = true, ollama = true)

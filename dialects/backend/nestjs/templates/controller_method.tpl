@@ -1,0 +1,21 @@
+{{#decor.get}}
+@Get({{#decor.get.path}}'{{decor.get.path}}'{{/decor.get.path}})
+{{/decor.get}}
+{{#decor.post}}
+@Post({{#decor.post.path}}'{{decor.post.path}}'{{/decor.post.path}})
+{{/decor.post}}
+{{#decor.put}}
+@Put({{#decor.put.path}}'{{decor.put.path}}'{{/decor.put.path}})
+{{/decor.put}}
+{{#decor.patch}}
+@Patch({{#decor.patch.path}}'{{decor.patch.path}}'{{/decor.patch.path}})
+{{/decor.patch}}
+{{#decor.delete}}
+@Delete({{#decor.delete.path}}'{{decor.delete.path}}'{{/decor.delete.path}})
+{{/decor.delete}}
+{{#decor.status}}
+@HttpCode({{decor.status.arg}})
+{{/decor.status}}
+{{decorators}}{{#async}}async {{/async}}{{name}}({{#params_list}}{{#route}}@Param('{{name}}'{{#tinfo.is.int}}, ParseIntPipe{{/tinfo.is.int}}{{#tinfo.is.double}}, ParseFloatPipe{{/tinfo.is.double}}{{#tinfo.is.boolean}}, ParseBoolPipe{{/tinfo.is.boolean}}) {{/route}}{{^route}}{{#tinfo.model}}@Body() {{/tinfo.model}}{{^tinfo.model}}@Query('{{name}}'{{#tinfo.is.int}}, new ParseIntPipe({ optional: true }){{/tinfo.is.int}}{{#tinfo.is.double}}, new ParseFloatPipe({ optional: true }){{/tinfo.is.double}}{{#tinfo.is.boolean}}, new ParseBoolPipe({ optional: true }){{/tinfo.is.boolean}}) {{/tinfo.model}}{{/route}}{{name}}{{#optional}}?{{/optional}}: {{type}}{{^@last}}, {{/@last}}{{/params_list}}){{#ret}}: {{ret}}{{/ret}} {
+  {{body}}
+}

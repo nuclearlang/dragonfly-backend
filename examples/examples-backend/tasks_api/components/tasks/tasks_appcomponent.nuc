@@ -1,0 +1,11 @@
+// What the rest of the app (the API and the assistant) sees of tasks.
+appcomponent TasksAppComponent
+  list() = ListTasks.exec
+  page() = PageTasks.exec
+  task() = GetTask.exec
+  create() = CreateTask.exec
+  update() = UpdateTask.exec
+  remove() = DeleteTask.exec
+  project() = GetProject.exec
+  addProject() = CreateProject.exec
+  close() = CloseProject.exec

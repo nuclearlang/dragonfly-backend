@@ -1,0 +1,6 @@
+// The platform this project is written for and the dialect it is built with (ADR-0093).
+dragonfly(platform = "backend", dialect = "nestjs")
+app(name = "tasks_api", description = "Tasks and an assistant.", version = "0.1.0")
+
+// The optional parts this project uses: only these go to the generated project.
+plugins(sqlite = true, events = true, ollama = true)

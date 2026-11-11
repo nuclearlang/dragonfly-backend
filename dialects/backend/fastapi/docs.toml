@@ -1,0 +1,433 @@
+# Editor documentation of the fastapi dialect (Dragonfly for Python): what the editor and `nuclear help <word>
+# --dialect fastapi` show for each kind and decorator. Rules: spec/fastapi.md.
+
+[kinds]
+
+entity = '''
+A **table** (SQLAlchemy 2), declared like a TypeORM entity.
+
+A table. In `components/<c>/data/entities/` the kind is given by the folder; elsewhere write `entity`. `@entity("table")` names the table (default: the name in snake_case). Each field is a column: `@primary(generated = true)` (a key the database gives), `@primary()` (a key the app gives), `@column(length = 100, unique = true, index = true, nullable = true, name = "x")`, `@created()`, `@updated()`; without a decorator it is a column too. Relations, as in TypeORM: `@manyToOne` (+ its column `<name>Id`), `@oneToMany`, `@manyToMany` + `@joinTable`, `@oneToOne` + `@joinColumn`; a relation field is optional and loaded only by `relations(...)` (N0308). Its SQL type comes from the field type; `name?: T` is nullable; a default goes to the column.
+
+```nuclear
+@entity("characters")
+entity Character()
+  @primary(generated = true)
+  id: int
+  @column(length = 100, unique = true)
+  name: string
+  @column(length = 20)
+  status: string = "alive"
+  species?: string
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+repository = '''
+The **data of one entity**: CRUD without writing it and queries built line by line.
+
+The data of one entity: `NameRepository` works on `Name` (or `@repository(Entity)`). It brings `find(id)` (`Ok(entity)` / `Err(NotFound)`), `findAll()`, `save(entity)` and `remove(id)`. Each method's lines build ONE query, created for that call (`q`): `where({...})` (equality, or `gt`, `gte`, `lt`, `lte`, `ne`, `like`, `ilike`, `oneOf`, `isNull`, `between`), `orderBy(field, desc = true)`, `limit(n)`, `offset(n)`, `relations("tasks", "tasks.tags")` (the relations to load); the last line runs it: `getOne()` (`Result`), `getMany()`, `paginate(page, size)` (`Page<T>`: `items`, `page`, `size`, `total`, `pages`), `count()`, `exists()`, `update({...})`, `delete()`. The caller awaits it: `~characters.byName(name)`.
+
+```nuclear
+repository CharacterRepository
+  byName(name: string) Result<Error, Character>
+    where({ "name": name })
+    getOne()
+
+  aliveSince(year: int, max: int = 20) Character[]
+    where({ "status": "alive", "year": gte(year) })
+    orderBy("name")
+    limit(max)
+    getMany()
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+model = '''
+A **pydantic model**: what the API reads and answers, validated.
+
+What the API reads and answers: a pydantic model (in `domain/models/` by folder). The same rule decorators as the nestjs dialect and Dragonfly's forms become pydantic constraints: `@required`, `@minLength(n)`, `@maxLength(n)`, `@min(n)`, `@max(n)`, `@pattern(r"...")`, `@email`, `@url`. An invalid body is a 422.
+
+```nuclear
+model NewCharacter
+  @minLength(1)
+  @maxLength(100)
+  name: string
+  status: string = "alive"
+  @email
+  contact?: string
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+usecase = '''
+One **business operation**: a single method `exec` that returns a `Result`.
+
+One business operation: its dependencies are injected by type; `exec` returns `Result<E, T>`. `Error` is `AppError`; the runtime has `NotFound` (404), `Invalid` (400), `Unauthorized` (401), `Forbidden` (403) and `Conflict` (409).
+
+```nuclear
+model NewCharacter
+  name: string
+  status: string = "alive"
+
+entity Character()
+  @primary(generated = true)
+  id: int
+  name: string
+  status: string
+
+usecase CreateCharacter(characters: CharacterRepository)
+  exec(input: NewCharacter) Result<Error, Character>
+    taken = ~characters.where({ "name": input.name }).exists()
+    if taken
+      return Err(Conflict("${input.name} already exists"))
+    Ok(~characters.save(Character(name = input.name, status = input.status)))
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+appcomponent = '''
+The **facade of a component**: aliases to its use cases.
+
+The facade of a component: aliases to the use cases. Other components and the controllers use only this.
+
+```nuclear
+appcomponent CharactersAppComponent
+  character() = GetCharacter.exec
+  create() = CreateCharacter.exec
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+controller = '''
+**REST routes** (FastAPI), declared like NestJS.
+
+REST routes over FastAPI, like NestJS: `@controller("path")` and `@get`, `@post` (201), `@put`, `@patch`, `@delete` with the route (`"{id}"`: a path parameter; segments without a leading slash). A parameter that is a model is the JSON body; an entity is read and answered through its pydantic schema. A `Result` answers its value, or the error's status and message.
+
+```nuclear
+@controller("characters")
+controller CharactersController(characters: CharactersAppComponent)
+  @get("{id}")
+  one(id: int) Result<Error, Character>
+    ~characters.character(id)
+
+  @post("")
+  create(input: NewCharacter) Result<Error, Character>
+    ~characters.create(input)
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+appConfig = '''
+The **configuration of the app**: its connections (databases, Redis, Kafka, models, vectors).
+
+The connections of the app (`appConfig`, `config/project_config.nuc`) and of a component (`config`): opened at start and closed at stop. Databases: `Postgres`, `MySQL`, `SQLite` (`url` picks the async driver, `createTables = true` creates the tables); `Redis`; `Kafka(servers, group)`; models: `OpenAI(model)`, `Ollama(model, baseUrl)`, `Embeddings(model)`; `Chroma(collection, embeddings, path)`. Each has a `name` (default `"default"`). `env("VAR", "default")` reads the environment.
+
+```nuclear
+appConfig ProjectConfig
+  connections: Connection[] = [
+    Postgres(url = env("DATABASE_URL", "postgresql+asyncpg://localhost/rick")),
+    Redis(url = env("REDIS_URL", "redis://localhost:6379/0")),
+    Kafka(servers = env("KAFKA", "localhost:9092"), group = "rick"),
+    OpenAI(model = "gpt-4o-mini"),
+  ]
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+config = '''
+The **configuration of one component**: connections only it uses.
+
+The connections of the app (`appConfig`, `config/project_config.nuc`) and of a component (`config`): opened at start and closed at stop. Databases: `Postgres`, `MySQL`, `SQLite` (`url` picks the async driver, `createTables = true` creates the tables); `Redis`; `Kafka(servers, group)`; models: `OpenAI(model)`, `Ollama(model, baseUrl)`, `Embeddings(model)`; `Chroma(collection, embeddings, path)`. Each has a `name` (default `"default"`). `env("VAR", "default")` reads the environment.
+
+```nuclear
+appConfig ProjectConfig
+  connections: Connection[] = [
+    Postgres(url = env("DATABASE_URL", "postgresql+asyncpg://localhost/rick")),
+    Redis(url = env("REDIS_URL", "redis://localhost:6379/0")),
+    Kafka(servers = env("KAFKA", "localhost:9092"), group = "rick"),
+    OpenAI(model = "gpt-4o-mini"),
+  ]
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+tools = '''
+**LangChain tools**: each public method with a doc comment is a tool the model can call.
+
+Each public method with a doc comment is a LangChain tool, and the doc comment is the description the model reads; a method without one is a helper of the others (never offered to the model). A tool can use the component's repositories.
+
+```nuclear
+tools CharacterTools(characters: CharacterRepository)
+  // Tells whether a character of the show is alive, by its name.
+  status(name: string) string
+    match ~characters.byName(name)
+      Ok(c) -> "${c.name} is ${c.status}"
+      Err(_) -> "nobody is called ${name}"
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+agent = '''
+A **LangChain agent**: a model with tools and a system prompt, with memory per thread.
+
+A model with tools and a system prompt (LangChain `create_agent`, with memory per thread). Its tools are the `tools` it receives; `model` names the chat model connection. `~guide.ask(text, thread = "user-1")` answers; `stream(text)` gives the answer piece by piece.
+
+```nuclear
+agent Guide(tools: CharacterTools)
+  model: string = "default"
+  prompt: string = "You answer questions about the characters. Use the tools."
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+state = '''
+The **state of a graph** (a TypedDict).
+
+A LangGraph `StateGraph`: `state` is its state (a `TypedDict`; `messages: Messages` keeps a conversation). Each method of the `graph` is a node that receives the state and returns what changes; `@start` marks the first one and `@next("node")` the one after it (`"end"` ends). A node can also return `Command(goto = "node", update = {...})` to choose at run time. `~review.run(state, thread)` runs it.
+
+```nuclear
+state ReviewState
+  question: string
+  answer: string
+
+@state(ReviewState)
+graph Review(guide: Guide)
+  @start
+  @next("end")
+  ask(state: ReviewState) <string, string>
+    { "answer": ~guide.ask(state.question) }
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+graph = '''
+A **LangGraph StateGraph**: its methods are the nodes.
+
+A LangGraph `StateGraph`: `state` is its state (a `TypedDict`; `messages: Messages` keeps a conversation). Each method of the `graph` is a node that receives the state and returns what changes; `@start` marks the first one and `@next("node")` the one after it (`"end"` ends). A node can also return `Command(goto = "node", update = {...})` to choose at run time. `~review.run(state, thread)` runs it.
+
+```nuclear
+state ReviewState
+  question: string
+  answer: string
+
+@state(ReviewState)
+graph Review(guide: Guide)
+  @start
+  @next("end")
+  ask(state: ReviewState) <string, string>
+    { "answer": ~guide.ask(state.question) }
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+listener = '''
+A **Kafka consumer**: `@consumer("topic")` methods receive the messages.
+
+A Kafka consumer: each `@consumer("topic")` method receives the messages of the topic, parsed as the type of its parameter (a model). `~publish("topic", value)` sends one. The Redis cache: `~cacheGet(key)`, `~cacheSet(key, value, seconds = 60)`.
+
+```nuclear
+listener CharacterEvents(characters: CharactersAppComponent)
+  @consumer("characters.created")
+  created(input: NewCharacter) void
+    ~characters.create(input)
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+tests = '''
+A group of **pytest tests** (in `test/`, written to `tests/`).
+
+In `test/*_test.nuc`: `tests Name` + `@test("what it checks")` methods → a pytest class. Every test runs with the project's connections and the databases in memory (`tests/conftest.py`); `inject<X>()` gives the instances. `expect(condition)` is `assert`. `dragonfly.testing.FakeModel([...])` answers fixed texts.
+
+```nuclear
+tests Characters
+  @test("an unknown id is not found")
+  unknownId() void
+    app = inject<CharactersAppComponent>()
+    missing = ~app.character(99)
+    expect(missing.isErr)
+    expect(missing.error.status == 404)
+```
+
+Full rules: `nuclear help fastapi` (spec/fastapi.md).
+'''
+
+service = '''
+Helpers of the use cases: mappings, transformations, calculations without state. Its dependencies are its constructor parameters (injected by type). Only use cases and aggregates call it.
+'''
+
+aggregate = '''
+Business rules several use cases share (a cart with its totals). Only use cases call it; it may use repositories.
+'''
+
+[decorators]
+
+entity = '''
+On an entity: `@entity("table")` names its table (default: the name in snake_case).
+'''
+
+primary = '''
+On an entity field: the primary key. `@primary()`: the app gives it (`@primary(length = 8)` for a code);
+`@primary(generated = true)`: the database gives it (auto increment for an `int`, a uuid for a `string`).
+'''
+
+manyToOne = '''
+On an entity field `x?: T` (T an entity): this row points to one row of T through the column of the field `xId`.
+Arguments: `inverse` (the `@oneToMany` field of T), `onDelete` (`"cascade"`, `"set null"`, `"restrict"`). Loaded only
+when a query asks for it: `relations("x")`.
+
+```nuclear
+@manyToOne(inverse = "tasks", onDelete = "cascade")
+project?: Project
+projectId: int
+```
+'''
+
+oneToMany = '''
+On an entity field `xs?: T[]`: the rows of T that point to this one; `inverse` (required) is their `@manyToOne`
+field. Loaded only when a query asks for it: `relations("xs")`.
+
+```nuclear
+@oneToMany(inverse = "project")
+tasks?: Task[]
+```
+'''
+
+manyToMany = '''
+On an entity field `xs?: T[]`: many rows of T, and T has many of these (`inverse`: its field back). One side has
+`@joinTable()`: the join table `<its table>_<field>` (`tasks_tags`, columns `task_id`, `tag_id`). Setting the list and
+saving writes the join table.
+'''
+
+joinTable = '''
+On the side of a `@manyToMany` that owns the join table (`<table>_<field>`).
+'''
+
+oneToOne = '''
+On an entity field `x?: T`: one row of T and one of this. The side with `@joinColumn()` keeps the column `xId`;
+`inverse` is the field back, `onDelete` as `@manyToOne`.
+'''
+
+joinColumn = '''
+On the side of a `@oneToOne` that keeps the column (`xId`, a field of its own).
+'''
+
+transactional = '''
+On a use case's `exec`: every repository call inside shares one transaction of the default database. An `Err` or an
+error rolls it back; an `Ok` commits it.
+
+```nuclear
+usecase CloseProject(tasks: TaskRepository, projects: ProjectRepository)
+  @transactional
+  exec(id: int, into: int) Result<Error, Moved>
+    ~projects.find(into)
+    moved = ~tasks.move(id, into)
+    ~projects.remove(id)
+    Ok(Moved(count = moved))
+```
+'''
+
+column = '''
+On an entity field: a column. Arguments: `length`, `unique`, `index`, `nullable`, `default`, `name`.
+'''
+
+created = '''
+On an entity field: when the row was inserted (set by the database).
+'''
+
+updated = '''
+On an entity field: when the row last changed (set by the database).
+'''
+
+repository = '''
+On a repository: `@repository(Entity)` when the name is not `<Entity>Repository`.
+'''
+
+controller = '''
+On a controller: `@controller("path")`, the prefix of its routes.
+'''
+
+get = '''
+On a controller method: `@get("{id}")`, a GET route (`{id}` is a path parameter). Also `@post` (201), `@put`, `@patch`, `@delete`.
+'''
+
+post = '''
+On a controller method: a POST route; answers 201. A model parameter is the JSON body.
+'''
+
+put = '''
+On a controller method: a PUT route (replaces the resource); the route is its argument.
+'''
+
+patch = '''
+On a controller method: a PATCH route (changes some fields); the route is its argument.
+'''
+
+delete = '''
+On a controller method: a DELETE route (removes the resource); the route is its argument.
+'''
+
+state = '''
+On a graph: `@state(StateName)`, the state its nodes receive and change.
+'''
+
+start = '''
+On a graph method: the first node, the one the graph runs when it starts (`@start`).
+'''
+
+next = '''
+On a graph method: `@next("node")`, the node after this one (`"end"` ends the graph).
+'''
+
+consumer = '''
+On a listener method: `@consumer("topic")`, receives each message of the Kafka topic, parsed as its parameter's type.
+'''
+
+test = '''
+On a tests method: `@test("what it checks")`, a pytest test.
+'''
+
+required = '''
+On a model field: it cannot be empty (a text of at least one character); otherwise a 422.
+'''
+
+email = '''
+On a model field: the value must be an e-mail address (`is_email`, run by pydantic); otherwise a 422.
+'''
+
+url = '''
+On a model field: the value must be an http(s) URL (`is_url`, run by pydantic); otherwise a 422.
+'''
+
+minLength = '''
+On a model field: `@minLength(n)`, the text has at least n characters (pydantic `MinLen`).
+'''
+
+maxLength = '''
+On a model field: `@maxLength(n)`, the text has at most n characters (pydantic `MaxLen`).
+'''
+
+min = '''
+On a model field: `@min(n)`, the number must be at least n (pydantic `Ge`).
+'''
+
+max = '''
+On a model field: `@max(n)`, the number must be at most n (pydantic `Le`).
+'''
+
+pattern = '''
+On a model field: `@pattern(r"^[a-z]+$")`, the text must match the regular expression.
+'''

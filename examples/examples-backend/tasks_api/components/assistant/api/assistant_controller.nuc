@@ -1,0 +1,13 @@
+// The assistant over HTTP: POST /assistant/chat and POST /assistant/plan.
+@controller("assistant")
+controller AssistantController(agent: AssistantAgent, planner: Planner)
+  @post("chat")
+  @status(200)
+  chat(input: ChatRequest) ChatReply
+    ChatReply(answer = ~agent.ask(input.message, input.thread))
+
+  @post("plan")
+  @status(200)
+  plan(input: PlanRequest) PlanReply
+    state = ~planner.run({ "goal": input.goal, "titles": [], "created": 0 })
+    PlanReply(titles = state["titles"], created = state["created"])

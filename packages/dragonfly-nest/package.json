@@ -1,0 +1,126 @@
+{
+  "name": "dragonfly-nest",
+  "version": "0.1.0",
+  "description": "Dragonfly for NestJS: the runtime of NuclearLang's nestjs dialect (Sequelize repositories, Result, connections)",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/test/"
+  },
+  "peerDependencies": {
+    "@nestjs/common": ">=10",
+    "@nestjs/core": ">=10",
+    "@nestjs/sequelize": ">=10",
+    "class-transformer": ">=0.5",
+    "class-validator": ">=0.14",
+    "reflect-metadata": ">=0.1",
+    "rxjs": ">=7",
+    "sequelize": ">=6",
+    "sequelize-typescript": ">=2",
+    "ioredis": ">=5",
+    "kafkajs": ">=2",
+    "langchain": ">=1",
+    "@langchain/core": ">=1",
+    "@langchain/langgraph": ">=1",
+    "@langchain/ollama": ">=1",
+    "@langchain/openai": ">=1",
+    "chromadb": ">=3",
+    "@nestjs/testing": ">=10"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./ai": {
+      "types": "./dist/ai.d.ts",
+      "default": "./dist/ai.js"
+    },
+    "./events": {
+      "types": "./dist/events.d.ts",
+      "default": "./dist/events.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    },
+    "./migrate": {
+      "types": "./dist/migrate.d.ts",
+      "default": "./dist/migrate.js"
+    }
+  },
+  "peerDependenciesMeta": {
+    "ioredis": {
+      "optional": true
+    },
+    "kafkajs": {
+      "optional": true
+    },
+    "langchain": {
+      "optional": true
+    },
+    "@langchain/core": {
+      "optional": true
+    },
+    "@langchain/langgraph": {
+      "optional": true
+    },
+    "@langchain/ollama": {
+      "optional": true
+    },
+    "@langchain/openai": {
+      "optional": true
+    },
+    "chromadb": {
+      "optional": true
+    },
+    "@nestjs/testing": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@langchain/core": "^1.3.4",
+    "@langchain/langgraph": "^1.6.1",
+    "@langchain/ollama": "^1.3.0",
+    "@langchain/openai": "^1.8.0",
+    "chromadb": "^3.5.0",
+    "@nestjs/common": "^12.3.2",
+    "@nestjs/core": "^12.3.2",
+    "@nestjs/sequelize": "^12.0.0",
+    "@nestjs/testing": "^12.3.2",
+    "@types/node": "^26.6.6",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "ioredis": "^5.11.0",
+    "kafkajs": "^2.2.4",
+    "langchain": "^1.6.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "sequelize": "^6.37.8",
+    "sequelize-typescript": "^2.1.6",
+    "sqlite3": "^6.0.1",
+    "typescript": "^5.9.3"
+  },
+  "allowScripts": {
+    "sqlite3": true
+  },
+  "bin": {
+    "dragonfly-nest-migrate": "dist/migrate.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nuclearlang/dragonfly-backend.git",
+    "directory": "packages/dragonfly-nest"
+  },
+  "homepage": "https://nuclearlang.github.io",
+  "bugs": {
+    "url": "https://github.com/nuclearlang/dragonfly-backend/issues"
+  }
+}

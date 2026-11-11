@@ -1,0 +1,31 @@
+{
+"format": 1,
+"libraries": ["aiokafka"],
+"reexports": {},
+"symbols": {
+  "AIOKafkaClient": 0,
+  "AIOKafkaConsumer": 0,
+  "AIOKafkaProducer": 0,
+  "ConsumerRebalanceListener": 0,
+  "ConsumerRecord": 0,
+  "ConsumerStoppedError": 0,
+  "IllegalOperation": 0,
+  "OffsetAndMetadata": 0,
+  "OffsetAndTimestamp": 0,
+  "ProducerMetricsCollector": 0,
+  "TopicPartition": 0
+},
+"classes": {
+  "AIOKafkaClient": {"supers":[],"members":["add_topic","bootstrap","close","coordinator_lookup","fetch_all_metadata","force_metadata_update","get_random_node","hosts","ready","send","set_topics"],"params":["loop","bootstrap_servers","client_id","metadata_max_age_ms","request_timeout_ms","retry_backoff_ms","ssl_context","security_protocol","api_version","connections_max_idle_ms","sasl_mechanism","sasl_plain_username","sasl_plain_password","sasl_kerberos_service_name","sasl_kerberos_domain_name","sasl_oauth_token_provider"]},
+  "AIOKafkaConsumer": {"supers":[],"members":["assign","assignment","beginning_offsets","commit","committed","end_offsets","getmany","getone","highwater","last_poll_timestamp","last_stable_offset","offsets_for_times","partitions_for_topic","pause","paused","position","resume","seek","seek_to_beginning","seek_to_committed","seek_to_end","start","stop","subscribe","subscription","topics","unsubscribe"],"params":["loop","bootstrap_servers","client_id","group_id","group_instance_id","key_deserializer","value_deserializer","fetch_max_wait_ms","fetch_max_bytes","fetch_min_bytes","max_partition_fetch_bytes","request_timeout_ms","retry_backoff_ms","auto_offset_reset","enable_auto_commit","auto_commit_interval_ms","check_crcs","metadata_max_age_ms","partition_assignment_strategy","max_poll_interval_ms","rebalance_timeout_ms","session_timeout_ms","heartbeat_interval_ms","consumer_timeout_ms","max_poll_records","ssl_context","security_protocol","api_version","exclude_internal_topics","connections_max_idle_ms","isolation_level","sasl_mechanism","sasl_plain_password","sasl_plain_username","sasl_kerberos_service_name","sasl_kerberos_domain_name","sasl_oauth_token_provider","client_rack"]},
+  "AIOKafkaProducer": {"supers":[],"members":["abort_transaction","begin_transaction","commit_transaction","create_batch","flush","partitions_for","send","send_and_wait","send_batch","send_offsets_to_transaction","start","stop","transaction"],"params":["loop","bootstrap_servers","client_id","metadata_max_age_ms","request_timeout_ms","api_version","acks","key_serializer","value_serializer","compression_type","max_batch_size","partitioner","max_request_size","linger_ms","retry_backoff_ms","security_protocol","ssl_context","connections_max_idle_ms","enable_idempotence","transactional_id","transaction_timeout_ms","sasl_mechanism","sasl_plain_password","sasl_plain_username","sasl_kerberos_service_name","sasl_kerberos_domain_name","sasl_oauth_token_provider","metrics_collector"]},
+  "ConsumerRebalanceListener": {"supers":["ABC"],"members":["on_partitions_assigned","on_partitions_revoked"],"params":[]},
+  "ConsumerRecord": {"supers":["Generic"],"members":["checksum","headers","key","offset","partition","serialized_key_size","serialized_value_size","timestamp","timestamp_type","topic","value"],"params":["topic","partition","offset","timestamp","timestamp_type","key","value","checksum","serialized_key_size","serialized_value_size","headers"]},
+  "ConsumerStoppedError": {"supers":["Exception"],"members":[]},
+  "IllegalOperation": {"supers":["Exception"],"members":[]},
+  "OffsetAndMetadata": {"supers":["tuple"],"members":["metadata","offset"],"params":["offset","metadata"]},
+  "OffsetAndTimestamp": {"supers":["tuple"],"members":["offset","timestamp"],"params":["offset","timestamp"]},
+  "ProducerMetricsCollector": {"supers":[],"members":["on_batch_completed","on_batch_dispatched","on_batch_failed","on_buffer_wait"],"params":[]},
+  "TopicPartition": {"supers":["tuple"],"members":["partition","topic"],"params":["topic","partition"]}
+}
+}

@@ -1,0 +1,6 @@
+tools CharacterTools(characters: CharacterRepository)
+  // Tells whether a character of the show is alive, by its name.
+  status(name: string) string
+    match ~characters.byName(name)
+      Ok(c) -> "${c.name} is ${c.status}"
+      Err(_) -> "nobody is called ${name}"

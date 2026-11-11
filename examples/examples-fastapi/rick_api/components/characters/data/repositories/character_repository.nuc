@@ -1,0 +1,11 @@
+// The characters table: find, findAll, save and remove come with the kind.
+repository CharacterRepository
+  byName(name: string) Result<Error, Character>
+    where({ "name": name })
+    getOne()
+
+  alive(max: int = 20) Character[]
+    where({ "status": "alive" })
+    orderBy("name")
+    limit(max)
+    getMany()

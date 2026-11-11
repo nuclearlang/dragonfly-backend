@@ -1,0 +1,3 @@
+// A task assistant: it reads, adds and completes tasks with its tools.
+agent AssistantAgent(tools: TaskTools)
+  prompt: string = "You are a task assistant. Use the tools to read, add and complete tasks; never invent ids. Answer briefly, in the language of the user."

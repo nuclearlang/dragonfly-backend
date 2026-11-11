@@ -1,0 +1,30 @@
+{
+"format": 1,
+"libraries": ["@nestjs/testing"],
+"reexports": {},
+"symbols": {
+  "CapturedLog": 0,
+  "CapturedLogFilter": 0,
+  "CapturedLogMatcher": 0,
+  "CapturingLogger": 0,
+  "CapturingLoggerOptions": 0,
+  "MockFactory": 0,
+  "OverrideBy": 0,
+  "OverrideByFactoryOptions": 0,
+  "Test": 0,
+  "TestingModule": 0,
+  "TestingModuleBuilder": 0,
+  "TestingModuleOptions": 0
+},
+"classes": {
+  "CapturedLog": {"supers":[],"members":["args","context","error","level","message","params","stack"],"kind":"interface"},
+  "CapturedLogFilter": {"supers":[],"members":["context","level","message","params"],"kind":"interface"},
+  "CapturingLogger": {"supers":["ConsoleLogger"],"members":["assertLogged","assertNotLogged","capture","captured","clear","colorize","context","debug","entries","error","extractJsonError","fatal","filter","find","formatContext","formatMessage","formatPid","formatTimestampDiff","getColorByLogLevel","getContextAndMessagesToPrint","getContextAndStackAndMessagesToPrint","getDefaultLogLevels","getInspectOptions","getJsonLogObject","getTimestamp","inspectOptions","isLevelEnabled","isStackFormat","log","options","originalContext","printAsJson","printMessages","printStackTrace","redact","redactor","resetContext","resolveMessage","serializeError","setContext","setLogLevels","shouldPrint","stringifyJsonLogObject","stringifyMessage","stringifyParams","stringifyReplacer","updateAndGetTimestampDiff","verbose","warn"],"params":["options"]},
+  "CapturingLoggerOptions": {"supers":["ConsoleLoggerOptions"],"members":["breakLength","colors","compact","context","depth","flattenParams","forceConsole","json","logLevels","maxArrayLength","maxStringLength","prefix","print","redact","showHidden","sorted","structuredParams","timestamp"],"kind":"interface"},
+  "OverrideBy": {"supers":[],"members":["useClass","useFactory","useValue"],"kind":"interface"},
+  "OverrideByFactoryOptions": {"supers":[],"members":["factory","inject"],"kind":"interface"},
+  "Test": {"supers":[],"members":[],"params":[]},
+  "TestingModule": {"supers":["NestApplicationContext"],"members":["appOptions","applicationConfig","applyLogger","assertNotInPreviewMode","callBeforeShutdownHook","callBootstrapHook","callDestroyHook","callInitHook","callShutdownHook","close","container","contextModule","createAdapterProxy","createHttpAdapter","createNestApplication","createNestMicroservice","dispose","enableShutdownHooks","find","flushLogs","flushLogsIfAutoFlushEnabled","flushLogsOnOverride","get","getModulesToTriggerHooksOn","graphInspector","init","initializationPromise","injector","instanceLinksHost","isHttpServer","isInitialized","listenToShutdownSignals","logger","moduleCompiler","preloadLazyPackages","prepareClose","printInPreviewModeWarning","receivedSignal","registerRequestByContextId","resolve","resolvePerContext","runShutdownSequence","scope","select","selectContextModule","shouldFlushLogsOnOverride","shutdown","shutdownCleanupRefs","shutdownPromise","unsubscribeFromProcessSignals","useLogger"],"params":["container","graphInspector","contextModule","applicationConfig","scope"]},
+  "TestingModuleBuilder": {"supers":[],"members":["applicationConfig","applyLogger","applyOverloadsMap","compile","container","createInstancesOfDependencies","createModule","createOverrideByBuilder","getModuleOverloads","getRootModule","metadataScanner","mocker","module","moduleOverloadsMap","overloadsMap","override","overrideFilter","overrideGuard","overrideInterceptor","overrideModule","overridePipe","overrideProvider","setLogger","testingLogger","useMocker"],"params":["metadataScanner","metadata","options"]}
+}
+}

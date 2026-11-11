@@ -1,0 +1,9 @@
+// Creates a task; two tasks cannot have the same title. Every new task is published on "tasks.created".
+usecase CreateTask(tasks: TaskRepository)
+  exec(input: NewTask) Result<Error, Task>
+    taken = ~tasks.where({ "title": input.title }).exists()
+    if taken
+      return Err(Conflict("there is already a task '${input.title}'"))
+    task = ~tasks.save(Task(title = input.title, priority = input.priority, projectId = input.projectId))
+    ~publish("tasks.created", { "id": task.id, "title": task.title })
+    Ok(task)

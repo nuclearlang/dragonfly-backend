@@ -1,0 +1,3 @@
+// Answers questions about the characters, with the tools.
+agent Guide(tools: CharacterTools)
+  prompt: string = "You answer questions about Rick and Morty characters. Use the tools; be brief."

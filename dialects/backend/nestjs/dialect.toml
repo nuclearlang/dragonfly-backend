@@ -1,0 +1,370 @@
+# nestjs dialect: Dragonfly for NestJS (spec/nestjs.md).
+# The architecture of Dragonfly (components, use cases, an appcomponent facade, repositories, config) on NestJS:
+# REST controllers (@controller, @get, @post...), repositories over tables with Sequelize (@nestjs/sequelize +
+# sequelize-typescript; entities declared like TypeORM), DTOs validated with class-validator, a Nest module per
+# component and the app module, written by the dialect. The runtime is packages/dragonfly-nest.
+
+[dialect]
+name = "nestjs"
+platform = "backend"
+extends = "nodejs"
+description = "Dragonfly for NestJS: controllers, Sequelize repositories, use cases, validated DTOs, modules written for you"
+# in Nest, Transform is the class-transformer decorator, not the Node stream
+replaces = ["auto_imports.Transform", "syntax.project_import"]
+# type definitions (spec/definitions.md): generated from the .d.ts by tools/defs/typescript (defs/typescript/)
+# order = which package gives a name two of them export: class-validator's IsInt/Min/Max (not sequelize-typescript's),
+# Nest's Query (not the runtime's)
+defs = [
+  "typescript@5.9.3",
+  "nestjs_common@12.3.2",
+  "nestjs_core@12.3.2",
+  "nestjs_sequelize@12.0.0",
+  "class_validator@0.15.1",
+  "class_transformer@0.5.1",
+  "sequelize_typescript@2.1.6",
+  "dragonfly-nest@0.1.0",
+  "sequelize@6.37.8",
+  "nestjs_testing@12.3.2",
+  "rxjs@7.8.2",
+]
+
+[syntax]
+# NestJS 12 is ES modules: a relative import names the compiled file
+project_import = "{{relative}}.js"
+
+[options]
+builtin_result = false             # Result, Ok and Err are the runtime's (dragonfly-nest)
+type_args_as_args = ["inject"]     # inject<Repo>() → inject(Repo): the class is the token
+route_param = ":name"              # @get("{id}") of the platform → @Get(':id')
+
+[types]
+# a use case fails with an AppError (NotFound, Invalid, Conflict...): its status is the HTTP answer
+Error = "AppError"
+DateTime = "Date"
+
+[names]
+written = ["Result", "Ok", "Err", "AppError", "Injectable", "Controller", "Model", "Entity", "Table", "Column", "DataType",
+  "BelongsTo", "HasMany", "HasOne", "BelongsToMany", "joinTable", "Related", "Page",
+  "PrimaryKey", "AutoIncrement", "CreatedAt", "UpdatedAt", "InjectModel", "Repository", "Param", "Body", "Query",
+  "ParseIntPipe", "ParseBoolPipe", "ParseFloatPipe", "Get", "Post", "Put", "Patch", "Delete", "HttpCode",
+  "IsString", "IsInt", "IsNumber", "IsBoolean", "IsOptional", "IsNotEmpty", "IsEmail", "IsUrl", "MinLength",
+  "MaxLength", "Min", "Max", "Matches", "IsArray", "ValidateNested", "Type", "IsDate", "AppConfig", "ComponentConfig",
+  "startTestApp", "stopTestApp", "INestApplication", "describe", "it", "beforeEach", "afterEach",
+  "Listener", "Tools", "Agent", "Graph", "Annotation", "Messages", "tool", "z", "StructuredToolInterface"]
+
+[decorators]
+# read by the templates (decor), not written as TypeScript decorators
+consumed = [
+  "entity", "primary", "column", "created", "updated", "repository",
+  "manyToOne", "oneToMany", "manyToMany", "oneToOne", "joinTable", "joinColumn", "controller",
+  "get", "post", "put", "patch", "delete", "status",
+  "required", "email", "url", "minLength", "maxLength", "min", "max", "pattern", "test", "state",
+]
+
+# --- configuration ---
+[kinds.appConfig]
+description = "appConfig Name + connections: Connection[] = [Postgres({...}), SQLite({...}), Redis(...)] → the project config (AppConfig)"
+inherits = ["AppConfig"]
+template = { file = "templates/appconfig.tpl" }
+[kinds.appConfig.syntax]
+field = "readonly {{name}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}};"
+
+[kinds.config]
+description = "config Name + connections → the connections of one component (ComponentConfig)"
+inherits = ["ComponentConfig"]
+template = { file = "templates/config.tpl" }
+[kinds.config.syntax]
+field = "override readonly {{name}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}};"
+
+# --- data ---
+[kinds.entity]
+description = "@entity(\"table\") Name + fields with @primary(generated)/@column(...)/@created/@updated/@manyToOne/@oneToMany/@manyToMany/@oneToOne in data/entities → a Sequelize table (sequelize-typescript), like a TypeORM entity"
+inherits = ["Entity"]
+template = { file = "templates/entity.tpl" }
+[kinds.entity.syntax]
+field = { file = "templates/entity_field.tpl" }
+
+[kinds.repository]
+description = "repository NameRepository + methods whose lines build a query (where, orderBy, limit, getOne, getMany...) → Repository<Entity> with CRUD"
+inherits = ["Repository", "Query"]
+template = { file = "templates/repository.tpl" }
+[kinds.repository.syntax]
+method = { file = "templates/repository_method.tpl" }
+self_member = "q.{{name}}"
+
+# --- domain ---
+[kinds.model]
+description = "Name + fields with @required/@email/@minLength(n)/@min(n)... in domain/models → a DTO validated with class-validator (what the API reads and answers)"
+template = { file = "templates/model.tpl" }
+[kinds.model.syntax]
+field = { file = "templates/model_field.tpl" }
+
+[kinds.usecase]
+description = "usecase Name(deps) + exec(...) Result<E, T> → one business operation (@Injectable)"
+methods = ["exec"]
+returns = "Result"
+template = { file = "templates/injectable.tpl" }
+[kinds.usecase.syntax]
+ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+
+[kinds.appcomponent]
+description = "appcomponent Name + aliases to the use cases (find() = GetTask.exec) → the facade of a component; the use cases are injected"
+alias_via = "constructor"
+template = { file = "templates/injectable.tpl" }
+[kinds.appcomponent.syntax]
+ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+
+[kinds.service]
+description = "service Name(deps) + methods → helpers of the use cases (mapping, transformations)"
+template = { file = "templates/injectable.tpl" }
+[kinds.service.syntax]
+ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+
+[kinds.aggregate]
+description = "aggregate Name(deps) + methods → business rules several use cases share"
+template = { file = "templates/injectable.tpl" }
+[kinds.aggregate.syntax]
+ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+
+# --- api: REST controllers ---
+[kinds.controller]
+description = "@controller(\"tasks\") controller Name(deps) + @get/@post/@put/@patch/@delete(\"{id}\") methods → Nest routes; path parameters, the body (a model) and the query are read by themselves"
+template = { file = "templates/controller.tpl" }
+[kinds.controller.syntax]
+ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+method = { file = "templates/controller_method.tpl" }
+
+# --- events: Kafka topics (publish) and their listeners ---
+[kinds.listener]
+description = "listener Name(deps) + @consumer(\"topic\") methods → receives every message of the Kafka topic (in-process without Kafka)"
+inherits = ["Listener"]
+template = { file = "templates/listener.tpl" }
+[kinds.listener.syntax]
+constructor = """
+constructor({{params}}) {
+  super();{{#body}}
+  {{body}}{{/body}}
+}"""
+ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+
+# --- AI: LangChain.js and LangGraph.js ---
+[kinds.tools]
+description = "tools Name(deps) + methods with a doc comment → LangChain tools (the doc comment is what the model reads; a method without one is a helper)"
+inherits = ["Tools"]
+template = { file = "templates/tools.tpl" }
+[kinds.tools.syntax]
+constructor = """
+constructor({{params}}) {
+  super();{{#body}}
+  {{body}}{{/body}}
+}"""
+ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+
+[kinds.agent]
+description = "agent Name(tools: SomeTools) + prompt = \"...\", model = \"default\" → a LangChain agent (createAgent) with ask(text, thread)"
+inherits = ["Agent"]
+template = { file = "templates/agent.tpl" }
+[kinds.agent.syntax]
+constructor = """
+constructor({{params}}) {
+  super();{{#body}}
+  {{body}}{{/body}}
+}"""
+ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+field = "{{#override}}override {{/override}}{{name}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}};"
+
+[kinds.state]
+description = "state Name + fields (messages: Messages) → the state of a graph (LangGraph Annotation.Root) and its type"
+template = { file = "templates/state.tpl" }
+
+[kinds.graph]
+description = "@state(S) graph Name(deps) + node methods (@start, @next(\"node\")) → a LangGraph StateGraph with run(state, thread)"
+inherits = ["Graph"]
+template = { file = "templates/graph.tpl" }
+[kinds.graph.syntax]
+constructor = """
+constructor({{params}}) {
+  super();{{#body}}
+  {{body}}{{/body}}
+}"""
+ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+
+# --- tests (node:test) ---
+[kinds.tests]
+description = "tests Name + @test(\"what it checks\") methods → a node:test suite with the app running (databases in memory); inject<X>() gives the instances"
+file_header = "import assert from 'node:assert/strict';"
+template = { file = "templates/tests.tpl" }
+results = "keep"
+void_methods = true
+[kinds.tests.syntax]
+method = { file = "templates/tests_method.tpl" }
+
+[functions]
+# expect(condition) in a test → node:assert: the condition must hold
+expect = { template = "assert.ok({{args}})" }
+
+# what the dragonfly CLI runs in build/ (ADR-0072): install the runtime and the app, run it, test it
+[toolchain]
+install = "npm install {{packages}}/dragonfly-nest && npm install"
+# `dragonfly build` compiles too once the app is installed: the running server (node --watch) restarts on it
+compile = "npx tsc -p tsconfig.json"
+run = "npm run dev"
+test = "npm test"
+url = "http://localhost:3000"
+installed = "node_modules"
+ready = "Nest application successfully started"
+# `dragonfly migrate make "<message>"` / `migrate` / `migrate down` (ADR-0100 §5): the project's migrations/ folder,
+# compared with the compiled entities
+migrate_make = "npx tsc -p tsconfig.json && npx dragonfly-nest-migrate make {{message}} --dir {{migrations}}"
+migrate = "npx tsc -p tsconfig.json && npx dragonfly-nest-migrate up --dir {{migrations}}"
+migrate_down = "npx tsc -p tsconfig.json && npx dragonfly-nest-migrate down --dir {{migrations}}"
+
+# the editor's debug launch: the compiled server with its source maps (a breakpoint in the generated .ts binds
+# through dist/*.js.map; one in a .nuc through .nuclear/lines.json)
+[[toolchain.launch]]
+name = "{{name}} (debug)"
+type = "node"
+request = "launch"
+cwd = "{{app}}"
+program = "{{app}}/dist/src/main.js"
+sourceMaps = true
+outFiles = ["{{app}}/dist/**/*.js"]
+skipFiles = ["<node_internals>/**"]
+env = { PORT = "{{port}}" }
+preLaunchTask = "dragonfly: build"
+
+[project]
+sources = "src"
+
+# config.nuc at the root: plugins(postgres = true, kafka = true, ai = true...) enables the optional parts; the
+# project carries (package.json) only what it enables
+[project.manifest]
+file = "config.nuc"
+sections = ["dragonfly", "app", "plugins", "contracts", "dependencies"]
+# dependencies(name = "version") adds a package of the target's package manager; a version that starts with . or / is a folder
+packages = ["dependencies"]
+
+[project.plugins.sqlite]
+description = "SQLite databases (sqlite3): SQLite(file = \"app.sqlite\")"
+packages = { sqlite3 = "^6.0.0" }
+names = ["SQLite"]
+
+[project.plugins.postgres]
+description = "PostgreSQL databases (pg): Postgres(url = env(\"DATABASE_URL\", \"...\"))"
+packages = { pg = "^8.13.0" }
+names = ["Postgres"]
+
+[project.plugins.mysql]
+description = "MySQL databases (mysql2): MySQL(url = \"mysql://...\")"
+packages = { mysql2 = "^3.11.0" }
+names = ["MySQL"]
+
+[project.plugins.mariadb]
+description = "MariaDB databases (mariadb): MariaDB(url = \"mariadb://...\")"
+packages = { mariadb = "^3.4.0" }
+names = ["MariaDB"]
+
+[project.plugins.redis]
+description = "The Redis cache (ioredis): Redis(url = ...), cacheGet, cacheSet"
+packages = { ioredis = "^5.11.0" }     # 5.x: what @langchain/community (the chroma plugin) accepts next to it
+names = ["Redis", "cacheGet", "cacheSet"]
+
+[project.plugins.kafka]
+description = "Kafka topics (kafkajs): Kafka(servers = ..., group = ...); publish reaches the broker (plugins(events = true) for the listener kind)"
+packages = { kafkajs = "^2.2.4" }
+names = ["Kafka"]
+
+[project.plugins.events]
+description = "publish and the listener kind with @consumer in the same process (Kafka optional: plugins(kafka = true))"
+kinds = ["listener"]
+names = ["publish", "Listener", "consumer"]
+
+[project.plugins.ai]
+description = "LangChain.js and LangGraph.js: the tools, agent, state and graph kinds and chat models"
+packages = { langchain = "^1.6.0", "@langchain/core" = "^1.3.0", "@langchain/langgraph" = "^1.6.0", zod = "^4.0.0" }
+kinds = ["tools", "agent", "state", "graph"]
+names = ["Tools", "Agent", "Graph", "Messages", "start", "next", "chatModel", "textOf", "FakeModel", "StateOf", "tool", "z", "Annotation", "Embeddings", "vectorStore"]
+
+[project.plugins.openai]
+description = "OpenAI chat models (@langchain/openai): OpenAI(model = \"gpt-4o-mini\")"
+packages = { "@langchain/openai" = "^1.8.0" }
+requires = ["ai"]
+names = ["OpenAI"]
+
+[project.plugins.ollama]
+description = "Local Ollama models (@langchain/ollama): Ollama(model = \"qwen3.5:4b\")"
+packages = { "@langchain/ollama" = "^1.3.0" }
+requires = ["ai"]
+names = ["Ollama"]
+
+[project.plugins.chroma]
+description = "A Chroma vector store on a Chroma server (chromadb): Chroma(collection = ..., url = ...)"
+packages = { chromadb = "^3.5.0" }
+requires = ["ai"]
+names = ["Chroma"]
+
+[project.kinds]
+"components/*/data/entities" = "entity"
+"shared/entities" = "entity"
+"components/*/domain/models" = "model"
+"shared/models" = "model"
+"components/*/ai/states" = "state"
+"test" = "tests"
+
+[project.outputs]
+"test" = "test"
+
+[project.files."src/app.module.ts"]
+names = ["AppModule"]
+template = { file = "templates/app_module.tpl" }
+
+[project.files."src/main.ts"]
+template = { file = "templates/main.tpl" }
+
+[project.files."package.json"]
+template = { file = "templates/package_json.tpl" }
+
+# npm copies the runtime (a `file:` dependency) instead of linking it: from a link, TypeScript resolves its imports
+# next to the runtime's own folder, not the app's
+[project.files.".npmrc"]
+template = "install-links=true"
+
+[project.files."tsconfig.json"]
+template = { file = "templates/tsconfig.tpl" }
+
+[architecture]
+scope = "components"
+public = ["appcomponent", "model", "entity", "tools", "agent", "state", "graph"]
+exempt = ["tests"]
+
+[architecture.callers]
+usecase = ["appcomponent"]
+service = ["usecase", "aggregate"]
+aggregate = ["usecase"]
+repository = ["usecase", "aggregate", "tools"]
+
+[imports]
+common = "@nestjs/common"
+core = "@nestjs/core"
+config = "@nestjs/config"
+
+[auto_imports]
+# the definitions give every other name; these choose the module when two packages export the same name
+"class-transformer" = ["Transform", "Type"]
+"dragonfly-nest" = ["Result", "Ok", "Err", "Entity", "Repository", "Page", "Related", "joinTable", "transactional", "Connection", "Database", "inject"]
+# the optional parts of the runtime: only a project that enables their plugin imports them
+"dragonfly-nest/events" = ["publish", "Redis", "Kafka", "Listener", "consumer", "cacheGet", "cacheSet"]
+"dragonfly-nest/testing" = ["startTestApp", "stopTestApp"]
+"dragonfly-nest/ai" = ["Tools", "Agent", "Graph", "Messages", "start", "next", "chatModel", "textOf", "ChatModel", "Ollama", "OpenAI", "FakeModel", "StateOf", "Embeddings", "Chroma", "vectorStore"]
+"node:test" = ["describe", "it", "beforeEach", "afterEach", "before", "after"]
+"langchain" = ["tool"]
+"zod" = ["z"]
+"@langchain/core/tools" = ["StructuredToolInterface"]
+"@langchain/langgraph" = ["Annotation", "Command", "END"]
+
+# the platform's Error is the runtime's AppError (message, status): Nuclear's `Error(message)` and `e.message`
+[library.Error]
+new = "new AppError({{arg0}})"
+
+[library.error]
+message = "{{recv}}.message"

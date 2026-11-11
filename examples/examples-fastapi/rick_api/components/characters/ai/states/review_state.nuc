@@ -1,0 +1,5 @@
+// The state of the review graph.
+ReviewState
+  question: string
+  answer: string
+  verdict: string

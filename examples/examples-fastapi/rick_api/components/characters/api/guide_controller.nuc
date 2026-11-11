@@ -1,0 +1,5 @@
+@controller("guide")
+controller GuideController(guide: Guide)
+  @post("ask")
+  ask(input: Question) Answer
+    Answer(text = ~guide.ask(input.text))

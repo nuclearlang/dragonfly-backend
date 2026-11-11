@@ -1,0 +1,4 @@
+// One page of the tasks (page from 1).
+usecase PageTasks(tasks: TaskRepository)
+  exec(page: int, size: int) Result<Error, Page<Task>>
+    Ok(~tasks.page(page, size))

@@ -1,0 +1,35 @@
+Metadata-Version: 2.4
+Name: dragonfly-py
+Version: 0.1.0
+Summary: Dragonfly for Python: the runtime of the fastapi dialect of NuclearLang (FastAPI, SQLAlchemy 2, LangChain, LangGraph)
+Requires-Python: >=3.12
+Requires-Dist: fastapi>=0.115
+Requires-Dist: pydantic>=2.9
+Requires-Dist: sqlalchemy[asyncio]>=2.0.36
+Provides-Extra: core
+Provides-Extra: ai
+Requires-Dist: langchain>=1.0; extra == "ai"
+Requires-Dist: langchain-core>=1.0; extra == "ai"
+Requires-Dist: langgraph>=1.0; extra == "ai"
+Provides-Extra: postgres
+Requires-Dist: asyncpg>=0.30; extra == "postgres"
+Provides-Extra: mysql
+Requires-Dist: aiomysql>=0.2; extra == "mysql"
+Provides-Extra: sqlite
+Requires-Dist: aiosqlite>=0.20; extra == "sqlite"
+Provides-Extra: redis
+Requires-Dist: redis>=5.2; extra == "redis"
+Provides-Extra: kafka
+Requires-Dist: aiokafka>=0.12; extra == "kafka"
+Provides-Extra: openai
+Requires-Dist: langchain-openai>=0.3; extra == "openai"
+Provides-Extra: ollama
+Requires-Dist: langchain-ollama>=0.3; extra == "ollama"
+Provides-Extra: chroma
+Requires-Dist: langchain-chroma>=0.2; extra == "chroma"
+Requires-Dist: chromadb>=0.6; extra == "chroma"
+Provides-Extra: test
+Requires-Dist: pytest>=8; extra == "test"
+Requires-Dist: pytest-asyncio>=0.24; extra == "test"
+Requires-Dist: httpx>=0.27; extra == "test"
+Requires-Dist: aiosqlite>=0.20; extra == "test"

@@ -1,0 +1,341 @@
+# fastapi dialect: Dragonfly for Python backends and AI agents (spec/fastapi.md).
+# The same architecture as Dragonfly for Flutter (components, use cases, an appcomponent facade, repositories,
+# config), with REST controllers like NestJS (@controller, @get, @post) on FastAPI, repositories over tables with
+# SQLAlchemy 2 async (entities declared like TypeORM), pydantic models, and LangChain / LangGraph kinds (tools,
+# agent, state, graph). The runtime is packages/dragonfly-py (import name: dragonfly).
+
+[dialect]
+name = "fastapi"
+platform = "backend"
+extends = "python"
+description = "Dragonfly for Python: FastAPI controllers, SQLAlchemy repositories, LangChain/LangGraph agents and graphs"
+defs = [
+  "dragonfly@0.1.0",
+  "pydantic@2.14.2",
+  "fastapi@0.162.0",
+  "starlette@1.10.0",
+  "sqlalchemy@2.1.8",
+  "langchain_core@1.7.4",
+  "langchain@1.4.8",
+  "langgraph@1.2.19",
+  "langchain_openai@1.7.3",
+  "langchain_ollama@1.1.0",
+  "langchain_chroma@1.1.0",
+  "chromadb@1.5.9",
+  "openai@3.44.0",
+  "ollama@0.6.3",
+  "asyncpg@0.32.0",
+  "redis@8.1.0",
+  "aiokafka@0.15.0",
+  "pydantic_settings@2.16.2",
+]
+# Result, Ok and Err are the runtime's (dragonfly.result), shared by the app and the framework
+replaces = ["auto_imports.Result", "auto_imports.Ok", "auto_imports.Err", "auto_imports.Field"]
+
+[options]
+builtin_result = false
+
+[types]
+# a use case fails with an AppError (NotFound, Invalid, Conflict...): its status is the HTTP answer
+Error = "AppError"
+
+[names]
+written = ["Result", "Ok", "Err", "AppError", "Awaitable", "Annotated", "MinLen", "MaxLen", "Ge", "Le",
+  "AfterValidator", "is_email", "is_url", "Repository", "Mapped", "BaseModel", "TypedDict", "AppConfig", "ComponentConfig"]
+
+[auto_imports]
+"dragonfly" = [
+  "Result", "Ok", "Err", "AppError", "NotFound", "Invalid", "Conflict", "Forbidden", "Unauthorized",
+  "inject", "provide", "bind", "env", "connection",
+  "AppConfig", "ComponentConfig", "Postgres", "MySQL", "MariaDB", "SQLite", "Redis", "Kafka", "OpenAI", "Ollama", "Embeddings", "Chroma",
+  "Entity", "Mapped", "primary", "column", "created", "updated",
+  "many_to_one", "one_to_many", "many_to_many", "one_to_one", "transactional", "Page",
+  "Repository", "gt", "gte", "lt", "lte", "ne", "like", "ilike", "one_of", "is_null", "between",
+  "controller", "get", "post", "put", "patch", "delete", "status",
+]
+# the optional parts of the runtime: only a project that enables their plugin imports them
+"dragonfly.ai" = ["Tools", "Agent", "Graph", "Messages", "start", "next", "chat_model", "vector_store", "text_of"]
+"dragonfly.events" = ["Listener", "consumer", "publish", "cache_get", "cache_set"]
+"dragonfly.testing" = ["FakeModel", "memory_database"]
+"dragonfly.validators" = ["is_email", "is_url"]
+# in a model, Field is pydantic's (not the dataclasses class)
+"pydantic" = ["Field", "AfterValidator"]
+"annotated_types" = ["MinLen", "MaxLen", "Ge", "Le"]
+
+[decorators]
+# read by the templates (decor), not written as Python decorators
+consumed = ["entity", "primary", "column", "created", "updated", "repository",
+  "manyToOne", "oneToMany", "manyToMany", "oneToOne", "joinTable", "joinColumn", "state", "test",
+  "required", "email", "url", "minLength", "maxLength", "min", "max", "pattern"]
+
+
+# --- configuration: the connections of the app and of each component ---
+[kinds.appConfig]
+description = "appConfig Name + connections = [Postgres(...), Redis(...), OpenAI(...)] → the project config (AppConfig)"
+inherits = ["AppConfig"]
+imports = ["AppConfig"]
+template = { file = "templates/appconfig.tpl" }
+[kinds.appConfig.syntax]
+field = "{{name}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+constructor = ""
+
+[kinds.config]
+description = "config Name + connections → the connections of one component (ComponentConfig)"
+inherits = ["ComponentConfig"]
+imports = ["ComponentConfig"]
+template = { file = "templates/config.tpl" }
+[kinds.config.syntax]
+field = "{{name}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+constructor = ""
+
+# --- data: entities (tables) and repositories ---
+[kinds.entity]
+description = "@entity(\"table\") Name + fields with @primary(generated)/@column(...)/@manyToOne/@oneToMany/@manyToMany/@oneToOne in data/entities → a SQLAlchemy table, like a TypeORM entity"
+inherits = ["Entity"]
+imports = ["Entity", "Mapped", "primary", "column", "created", "updated", "many_to_one", "one_to_many", "many_to_many", "one_to_one"]
+# two related entities import each other only for pyright (SQLAlchemy finds them by name)
+type_imports = true
+template = { file = "templates/entity.tpl" }
+[kinds.entity.syntax]
+field = { file = "templates/entity_field.tpl" }
+constructor = ""
+
+[kinds.repository]
+description = "repository NameRepository + methods whose lines build a query (where, order_by, limit, get_one, get_many...) → Repository[Entity] with CRUD"
+inherits = ["Repository", "Query"]
+imports = ["Repository", "Awaitable"]
+template = { file = "templates/repository.tpl" }
+[kinds.repository.syntax]
+method = { file = "templates/repository_method.tpl" }
+self_member = "q.{{name}}"
+
+# --- domain ---
+[kinds.model]
+description = "Name + fields in domain/models → a pydantic model (validated; what the API reads and answers)"
+imports = ["BaseModel"]
+template = { file = "templates/model.tpl" }
+[kinds.model.syntax]
+# Dragonfly's rule decorators (the same as the nestjs dialect and Flutter's forms) become pydantic constraints
+field = { file = "templates/model_field.tpl" }
+constructor = ""
+
+[kinds.usecase]
+description = "usecase Name(deps) + exec(...) Result<E, T> → one business operation"
+methods = ["exec"]
+returns = "Result"
+template = { file = "templates/injectable.tpl" }
+
+[kinds.appcomponent]
+description = "appcomponent Name + aliases to the use cases (find(id) = GetCharacter.exec) → the facade of a component"
+alias_via = "inject"
+template = { file = "templates/injectable.tpl" }
+
+[kinds.service]
+description = "service Name(deps) + methods → helpers of the use cases (mapping, transformations)"
+template = { file = "templates/injectable.tpl" }
+
+[kinds.aggregate]
+description = "aggregate Name(deps) + methods → business rules several use cases share"
+template = { file = "templates/injectable.tpl" }
+
+# --- api: REST controllers, like NestJS ---
+[kinds.controller]
+description = "@controller(\"tasks\") controller Name(deps) + @get/@post/@put/@patch/@delete(\"{id}\") methods → FastAPI routes; path parameters, the body (a model) and the query are read by themselves"
+template = { file = "templates/injectable.tpl" }
+
+# --- events: publish and its listeners (Kafka when it is configured) ---
+[kinds.listener]
+description = "listener Name(deps) + @consumer(\"topic\") methods → receives every message of the topic (in-process without Kafka)"
+inherits = ["Listener"]
+imports = ["Listener"]
+template = { file = "templates/listener.tpl" }
+
+# --- AI: LangChain and LangGraph ---
+[kinds.tools]
+description = "tools Name(deps) + methods with a doc comment → LangChain tools (the doc comment is what the model reads; a method without one is a helper)"
+inherits = ["Tools"]
+imports = ["Tools"]
+template = { file = "templates/tools.tpl" }
+
+[kinds.agent]
+description = "agent Name(tools: SomeTools) + model = \"default\", prompt = \"...\" → a LangChain agent (create_agent) with ask(text, thread)"
+inherits = ["Agent"]
+imports = ["Agent"]
+template = { file = "templates/agent.tpl" }
+[kinds.agent.syntax]
+field = "{{name}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+
+[kinds.state]
+description = "state Name + fields (messages: Messages) → the state of a graph (a pydantic model: nodes read state.field; a field without a default gets its type's empty value)"
+imports = ["BaseModel"]
+template = { file = "templates/state.tpl" }
+[kinds.state.syntax]
+field = { file = "templates/state_field.tpl" }
+constructor = ""
+
+[kinds.graph]
+description = "@state(S) graph Name(deps) + node methods (@start, @next(\"node\")) → a LangGraph StateGraph with run(state, thread)"
+inherits = ["Graph"]
+imports = ["Graph"]
+template = { file = "templates/graph.tpl" }
+
+# --- tests (pytest) ---
+[kinds.tests]
+description = "tests Name + @test(\"what it checks\") methods → a pytest class; inject<X>() gives the app's instances"
+template = { file = "templates/tests.tpl" }
+results = "keep"
+void_methods = true
+[kinds.tests.syntax]
+method = { file = "templates/tests_method.tpl" }
+
+[functions]
+# expect(condition) in a test → assert condition
+expect = { template = "assert {{args}}" }
+
+# what the dragonfly CLI runs in build/ (ADR-0072): install the runtime and the app, run it, test it
+[toolchain]
+install = "python3 -m venv .venv && .venv/bin/pip install -q {{packages}}/dragonfly-py && .venv/bin/pip install -q -e '.[test]'"
+run = ".venv/bin/uvicorn app.main:app --reload --port {{port}}"
+test = ".venv/bin/python -m pytest -q"
+# where the server answers (the editor's debugger and HTTP tool), what exists once installed, its ready line
+url = "http://localhost:8000"
+installed = ".venv"
+ready = "Uvicorn running"
+# `dragonfly migrate make "<message>"` / `migrate` / `migrate down` (ADR-0100 §5): Alembic over the project's
+# migrations/ folder
+migrate_make = ".venv/bin/python -m dragonfly.migrate make {{message}} --dir {{migrations}}"
+migrate = ".venv/bin/python -m dragonfly.migrate up --dir {{migrations}}"
+migrate_down = ".venv/bin/python -m dragonfly.migrate down --dir {{migrations}}"
+
+[toolchain.windows]
+install = "python -m venv .venv && .venv\\Scripts\\pip install -q {{packages}}/dragonfly-py && .venv\\Scripts\\pip install -q -e .[test]"
+run = ".venv\\Scripts\\uvicorn app.main:app --reload --port {{port}}"
+test = ".venv\\Scripts\\python -m pytest -q"
+migrate_make = ".venv\\Scripts\\python -m dragonfly.migrate make {{message}} --dir {{migrations}}"
+migrate = ".venv\\Scripts\\python -m dragonfly.migrate up --dir {{migrations}}"
+migrate_down = ".venv\\Scripts\\python -m dragonfly.migrate down --dir {{migrations}}"
+
+# the editor's debug launch: the server under debugpy with the app's virtual environment (no --reload: the debugger
+# owns the process)
+[[toolchain.launch]]
+name = "{{name}} (debug)"
+type = "debugpy"
+request = "launch"
+module = "uvicorn"
+args = ["app.main:app", "--port", "{{port}}"]
+cwd = "{{app}}"
+python = "{{app}}/.venv/bin/python"
+justMyCode = true
+preLaunchTask = "dragonfly: build"
+windows = { python = "{{app}}/.venv/Scripts/python.exe" }
+
+[project]
+sources = "app"
+assets = []
+
+# config.nuc at the root: plugins(ai = true, ollama = true, postgres = true) enables the optional parts; the project
+# carries (pyproject.toml) only what it enables
+[project.manifest]
+file = "config.nuc"
+sections = ["dragonfly", "app", "plugins", "contracts", "dependencies"]
+# dependencies(name = "version") adds a package of the target's package manager; a version that starts with . or / is a folder
+packages = ["dependencies"]
+
+[project.plugins.sqlite]
+description = "SQLite databases (aiosqlite): SQLite(file = \"app.sqlite\")"
+packages = { aiosqlite = ">=0.20" }
+names = ["SQLite"]
+
+[project.plugins.postgres]
+description = "PostgreSQL databases (asyncpg): Postgres(url = env(\"DATABASE_URL\", \"postgres://...\"))"
+packages = { asyncpg = ">=0.30" }
+names = ["Postgres"]
+
+[project.plugins.mysql]
+description = "MySQL databases (aiomysql): MySQL(url = \"mysql://...\")"
+packages = { aiomysql = ">=0.2" }
+names = ["MySQL"]
+
+[project.plugins.mariadb]
+description = "MariaDB databases (aiomysql): MariaDB(url = \"mariadb://...\")"
+packages = { aiomysql = ">=0.2" }
+names = ["MariaDB"]
+
+[project.plugins.redis]
+description = "The Redis cache (redis.asyncio): Redis(url = ...), cache_get, cache_set"
+packages = { redis = ">=5.2" }
+names = ["Redis", "cache_get", "cache_set"]
+
+[project.plugins.kafka]
+description = "Kafka topics (aiokafka): Kafka(servers = ..., group = ...); publish reaches the broker (plugins(events = true) for the listener kind)"
+packages = { aiokafka = ">=0.12" }
+names = ["Kafka"]
+
+[project.plugins.events]
+description = "publish and the listener kind with @consumer in the same process (Kafka optional: plugins(kafka = true))"
+kinds = ["listener"]
+names = ["publish", "Listener", "consumer"]
+
+[project.plugins.ai]
+description = "LangChain and LangGraph: the tools, agent, state and graph kinds, chat models and embeddings"
+packages = { langchain = ">=1.0", langchain-core = ">=1.0", langgraph = ">=1.0" }
+kinds = ["tools", "agent", "state", "graph"]
+names = ["Tools", "Agent", "Graph", "Messages", "start", "next", "chat_model", "vector_store", "text_of", "Embeddings", "FakeModel"]
+defs = []
+
+[project.plugins.openai]
+description = "OpenAI chat models and embeddings (langchain-openai): OpenAI(model = \"gpt-4o-mini\")"
+packages = { langchain-openai = ">=0.3" }
+requires = ["ai"]
+names = ["OpenAI"]
+
+[project.plugins.ollama]
+description = "Local Ollama models (langchain-ollama): Ollama(model = \"qwen3.5:4b\")"
+packages = { langchain-ollama = ">=0.3" }
+requires = ["ai"]
+names = ["Ollama"]
+
+[project.plugins.chroma]
+description = "A Chroma vector store on a Chroma server (langchain-chroma): Chroma(collection = ..., url = ...)"
+packages = { langchain-chroma = ">=0.2", chromadb = ">=0.6" }
+requires = ["ai"]
+names = ["Chroma"]
+
+[project.kinds]
+"components/*/data/entities" = "entity"
+"shared/entities" = "entity"
+"components/*/domain/models" = "model"
+"shared/models" = "model"
+"components/*/ai/states" = "state"
+"test" = "tests"
+
+# the platform's test/ folder is pytest's tests/
+[project.outputs]
+"test" = "tests"
+
+[project.files."app/main.py"]
+template = { file = "templates/main.tpl" }
+
+[project.files."pyproject.toml"]
+template = { file = "templates/pyproject.tpl" }
+
+[project.files."tests/conftest.py"]
+template = { file = "templates/conftest.tpl" }
+
+[architecture]
+scope = "components"
+public = ["appcomponent", "model", "entity", "tools", "agent", "state", "graph"]
+exempt = ["tests"]
+
+[architecture.callers]
+usecase = ["appcomponent"]
+service = ["usecase", "aggregate"]
+aggregate = ["usecase"]
+repository = ["usecase", "aggregate", "tools"]
+
+# the platform's Error is the runtime's AppError (message, status): Nuclear's `Error(message)` and `e.message`
+[library.Error]
+new = "AppError({{arg0}})"
+
+[library.error]
+message = "{{recv}}.message"

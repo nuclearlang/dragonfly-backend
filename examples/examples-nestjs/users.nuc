@@ -1,0 +1,44 @@
+// nestjs dialect (Dragonfly for NestJS) in one file: a DTO, a service and a controller.
+// In a project (nuclear.toml) the same kinds also get entities, repositories over Sequelize, use cases and the
+// Nest modules: examples/examples-nestjs/tasks_api.
+
+// What the API receives to create a user.
+model NewUser
+  @minLength(2)
+  name: string
+  @email
+  email: string
+
+User(id: int, name: string, email: string)
+
+// The users, in memory.
+service UsersService
+  users: User[] = []
+
+  all() User[]
+    users
+
+  one(id: int) Result<Error, User>
+    found = users.find((u: User) => u.id == id)
+    if found == null
+      return Err(NotFound("user ${id} not found"))
+    Ok(found)
+
+  add(input: NewUser) User
+    user = User(users.length + 1, input.name, input.email)
+    users.add(user)
+    user
+
+@controller("users")
+controller UsersController(users: UsersService)
+  @get()
+  all() User[]
+    users.all()
+
+  @get(":id")
+  one(id: int) Result<Error, User>
+    users.one(id)
+
+  @post()
+  create(input: NewUser) User
+    users.add(input)

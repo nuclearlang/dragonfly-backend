@@ -1,0 +1,9 @@
+// A project groups tasks (table projects); removing it removes its tasks.
+@entity("projects")
+Project()
+  @primary(generated = true)
+  id: int
+  @column(length = 100)
+  name: string
+  @oneToMany(inverse = "project")
+  tasks?: Task[]

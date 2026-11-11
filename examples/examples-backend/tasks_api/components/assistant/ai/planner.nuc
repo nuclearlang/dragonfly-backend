@@ -1,0 +1,22 @@
+// Turns a goal into tasks: the model splits it, then each step becomes a task.
+@state(PlanState)
+graph Planner(tasks: TasksAppComponent)
+  @start
+  @next("save")
+  split(state: PlanState) <string, any>
+    reply = ~chatModel().invoke("Split this goal into at most 5 short tasks. Answer only the tasks, one per line, without numbers: ${state.goal}")
+    titles: string[] = []
+    for line in textOf(reply).split("\n")
+      title = line.replaceAll(Regex(r"^[\s\-*.0-9]+"), "").trim()
+      if title.length > 0 and titles.length < 5
+        titles.add(title)
+    { "titles": titles }
+
+  @next("end")
+  save(state: PlanState) <string, any>
+    created = 0
+    for title in state.titles
+      made = ~tasks.create(NewTask(title = title))
+      if made.isOk
+        created += 1
+    { "created": created }

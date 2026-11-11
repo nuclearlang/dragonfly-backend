@@ -1,0 +1,11 @@
+// Changes the fields that come in `changes`.
+usecase UpdateTask(tasks: TaskRepository)
+  exec(id: int, changes: TaskChanges) Result<Error, Task>
+    task = ~tasks.find(id)
+    if changes.title != null
+      task.title = changes.title
+    if changes.done != null
+      task.done = changes.done
+    if changes.priority != null
+      task.priority = changes.priority
+    Ok(~tasks.save(task))

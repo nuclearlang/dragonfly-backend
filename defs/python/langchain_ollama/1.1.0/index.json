@@ -1,0 +1,15 @@
+{
+"format": 1,
+"libraries": ["langchain_ollama"],
+"reexports": {},
+"symbols": {
+  "ChatOllama": 0,
+  "OllamaEmbeddings": 0,
+  "OllamaLLM": 0
+},
+"classes": {
+  "ChatOllama": {"supers":["BaseChatModel"],"members":["async_client_kwargs","base_url","bind_tools","cache","callbacks","client_kwargs","custom_get_token_ids","disable_streaming","format","keep_alive","logprobs","metadata","mirostat","mirostat_eta","mirostat_tau","model","model_config","model_post_init","name","num_ctx","num_gpu","num_predict","num_thread","output_version","profile","rate_limiter","reasoning","repeat_last_n","repeat_penalty","seed","stop","sync_client_kwargs","tags","temperature","tfs_z","top_k","top_logprobs","top_p","validate_model_on_init","verbose","with_structured_output"],"params":["name","cache","verbose","callbacks","tags","metadata","custom_get_token_ids","rate_limiter","disable_streaming","output_version","profile","model","reasoning","validate_model_on_init","mirostat","mirostat_eta","mirostat_tau","num_ctx","num_gpu","num_thread","num_predict","repeat_last_n","repeat_penalty","temperature","seed","logprobs","top_logprobs","stop","tfs_z","top_k","top_p","format","keep_alive","base_url","client_kwargs","async_client_kwargs","sync_client_kwargs"]},
+  "OllamaEmbeddings": {"supers":["BaseModel","Embeddings"],"members":["aembed_documents","aembed_query","async_client_kwargs","base_url","client_kwargs","dimensions","embed_documents","embed_query","keep_alive","mirostat","mirostat_eta","mirostat_tau","model","model_config","model_post_init","num_ctx","num_gpu","num_thread","repeat_last_n","repeat_penalty","stop","sync_client_kwargs","temperature","tfs_z","top_k","top_p","validate_model_on_init"],"params":["model","dimensions","validate_model_on_init","base_url","client_kwargs","async_client_kwargs","sync_client_kwargs","mirostat","mirostat_eta","mirostat_tau","num_ctx","num_gpu","keep_alive","num_thread","repeat_last_n","repeat_penalty","temperature","stop","tfs_z","top_k","top_p"]},
+  "OllamaLLM": {"supers":["BaseLLM"],"members":["async_client_kwargs","base_url","cache","callbacks","client_kwargs","custom_get_token_ids","format","keep_alive","metadata","mirostat","mirostat_eta","mirostat_tau","model","model_config","model_post_init","name","num_ctx","num_gpu","num_predict","num_thread","reasoning","repeat_last_n","repeat_penalty","seed","stop","sync_client_kwargs","tags","temperature","tfs_z","top_k","top_p","validate_model_on_init","verbose"],"params":["name","cache","verbose","callbacks","tags","metadata","custom_get_token_ids","model","reasoning","validate_model_on_init","mirostat","mirostat_eta","mirostat_tau","num_ctx","num_gpu","num_thread","num_predict","repeat_last_n","repeat_penalty","temperature","seed","stop","tfs_z","top_k","top_p","format","keep_alive","base_url","client_kwargs","async_client_kwargs","sync_client_kwargs"]}
+}
+}

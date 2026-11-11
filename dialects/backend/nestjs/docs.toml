@@ -1,0 +1,434 @@
+# Editor documentation of the nestjs dialect (Dragonfly for NestJS): what the editor and `nuclear help <word>
+# --dialect nestjs` show for each kind and decorator. Rules: spec/nestjs.md.
+
+[kinds]
+
+entity = '''
+A **table** (Sequelize, sequelize-typescript), declared like a TypeORM entity.
+
+A table (sequelize-typescript). In `components/<c>/data/entities/` the kind is given by the folder; elsewhere write `entity`. `@entity("table")` names the table (default: the name in snake_case); columns are snake_case in the database (`underscored`). Each field is a column: `@primary(generated = true)` (a key the database gives), `@primary()` (a key the app gives; `length = 36`), `@column(length = 100, unique = true, name = "x")`, `@created()`, `@updated()`; without a decorator it is a column too. Relations, as in TypeORM: `@manyToOne` (+ its column `<name>Id`), `@oneToMany`, `@manyToMany` + `@joinTable`, `@oneToOne` + `@joinColumn`; a relation field is optional and loaded only by `relations(...)` (N0308). The SQL type comes from the field type; `name?: T` allows null; a default is the column's default.
+
+```nuclear
+@entity("tasks")
+entity Task()
+  @primary(generated = true)
+  id: int
+  @column(length = 200, unique = true)
+  title: string
+  done: boolean = false
+  @created()
+  createdAt?: DateTime
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+repository = '''
+The **data of one entity**: CRUD without writing it and queries built line by line.
+
+The data of one entity: `NameRepository` works on `Name` (or `@repository(Entity)`); Nest injects its Sequelize model. It brings `find(id)` (`Ok(entity)` / `Err(NotFound)`), `findAll()`, `save(entity)` and `remove(id)`. Each method's lines build ONE query, created for that call (`q`): `where({...})` (equality, or `gt`, `gte`, `lt`, `lte`, `ne`, `like`, `iLike`, `oneOf`, `isNull`, `between`), `orderBy(field, true)` (descending), `limit(n)`, `offset(n)`, `relations("tasks", "tasks.tags")` (the relations to load); the last line runs it: `getOne()` (`Result`), `getMany()`, `paginate(page, size)` (`Page<T>`: `items`, `page`, `size`, `total`, `pages`), `count()`, `exists()`, `update({...})`, `delete()`. The caller awaits it: `~tasks.byTitle(title)`.
+
+```nuclear
+repository TaskRepository
+  byTitle(title: string) Result<Error, Task>
+    where({ "title": title })
+    getOne()
+
+  pending(max: int = 20) Task[]
+    where({ "done": false, "priority": lte(2) })
+    orderBy("priority")
+    limit(max)
+    getMany()
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+model = '''
+A **DTO** validated with class-validator: what the API reads and answers.
+
+What the API reads and answers (a DTO): class-validator checks it (an invalid body is a 400 with the reasons). The type gives the basic check (`IsString`, `IsInt`, `IsNumber`, `IsBoolean`, `IsArray`, a nested model); the same decorators as Dragonfly's forms add rules: `@required`, `@email`, `@url`, `@minLength(n)`, `@maxLength(n)`, `@min(n)`, `@max(n)`, `@pattern(r"...")`. `NewTask(title = "x")` builds one.
+
+```nuclear
+model NewTask
+  @minLength(1)
+  @maxLength(200)
+  title: string
+  @min(1)
+  @max(3)
+  priority: int = 2
+  @email
+  owner?: string
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+usecase = '''
+One **business operation**: a single method `exec` that returns a `Result`.
+
+One business operation (`@Injectable`): its dependencies are constructor parameters, injected by Nest; `exec` returns `Result<E, T>`. `Error` is `AppError`; the runtime has `NotFound` (404), `Invalid` (400), `Unauthorized` (401), `Forbidden` (403) and `Conflict` (409). `x = ~repo.find(id)` unwraps the `Ok` and returns the `Err` by itself.
+
+```nuclear
+model TaskChanges
+  done?: boolean
+
+entity Task()
+  @primary(generated = true)
+  id: int
+  done: boolean = false
+
+repository TaskRepository
+
+usecase CompleteTask(tasks: TaskRepository)
+  exec(id: int, changes: TaskChanges) Result<Error, Task>
+    task = ~tasks.find(id)
+    if changes.done != null
+      task.done = changes.done
+    Ok(~tasks.save(task))
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+appcomponent = '''
+The **facade of a component**: aliases to its use cases, injected by Nest.
+
+The facade of a component: aliases to its use cases. Nest injects each use case in its constructor; other components and the controllers use only this.
+
+```nuclear
+appcomponent TasksAppComponent
+  task() = GetTask.exec
+  complete() = CompleteTask.exec
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+controller = '''
+**REST routes** of NestJS; parameters, body and query are read by themselves.
+
+REST routes, like NestJS: `@controller("tasks")` and `@get`, `@post` (201), `@put`, `@patch`, `@delete` with Nest's route (`":id"`), and `@status(204)`. Each parameter is read by itself: one named in the route is `@Param` (an `int` is parsed), a model is the `@Body()`, anything else is `@Query`. A `Result` answers its value, or the error's status and message.
+
+```nuclear
+model TaskChanges
+  done?: boolean
+
+@controller("tasks")
+controller TasksController(tasks: TasksAppComponent)
+  @get("{id}")
+  one(id: int) Result<Error, Task>
+    ~tasks.task(id)
+
+  @patch("{id}")
+  complete(id: int, changes: TaskChanges) Result<Error, Task>
+    ~tasks.complete(id, changes)
+
+  @get()
+  search(text?: string) string
+    text ?? ""
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+appConfig = '''
+The **configuration of the app**: its database and other connections.
+
+The connections of the app (`appConfig`, `config/project_config.nuc`) and of a component (`config`). Databases: `Postgres({ url })`, `MySQL({ url })`, `MariaDB({ url })`, `SQLite({ file })`, each with `createTables = true` to create the tables (development). The database goes to `SequelizeModule`; the other connections are opened at start and closed at stop. `env("VAR", "default")` reads the environment.
+
+```nuclear
+appConfig ProjectConfig
+  connections: Connection[] = [
+    Postgres(url = env("DATABASE_URL", "postgres://localhost/tasks")),
+  ]
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+config = '''
+The **configuration of one component**: connections only it uses.
+
+The connections of the app (`appConfig`, `config/project_config.nuc`) and of a component (`config`). Databases: `Postgres({ url })`, `MySQL({ url })`, `MariaDB({ url })`, `SQLite({ file })`, each with `createTables = true` to create the tables (development). The database goes to `SequelizeModule`; the other connections are opened at start and closed at stop. `env("VAR", "default")` reads the environment.
+
+```nuclear
+appConfig ProjectConfig
+  connections: Connection[] = [
+    Postgres(url = env("DATABASE_URL", "postgres://localhost/tasks")),
+  ]
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+tests = '''
+A **node:test suite** (in `test/`) with the app running and the databases in memory.
+
+In `test/`: `tests Name` + `@test("what it checks")` methods → a `node:test` suite. Each test starts the app with the databases in SQLite in memory; `inject<X>()` gives Nest's instances; `expect(condition)` is `assert.ok`. `npm test` compiles and runs them.
+
+```nuclear
+tests Tasks
+  @test("an unknown id is not found")
+  unknownId() void
+    tasks = inject<TasksAppComponent>()
+    missing = ~tasks.task(99)
+    expect(missing.error.status == 404)
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+service = '''
+Helpers of the use cases (`@Injectable`): mappings, transformations, calculations without state. Its dependencies are its constructor parameters. Only use cases and aggregates call it.
+'''
+
+aggregate = '''
+Business rules several use cases share (`@Injectable`). Only use cases call it; it may use repositories.
+'''
+
+listener = '''
+A **Kafka consumer**: `@consumer("topic")` methods receive the messages (in this process without Kafka).
+
+A Kafka consumer: each `@consumer("topic")` method receives the messages of the topic, as the type of its parameter (a model). `~publish("topic", value)` sends one; without a `Kafka` connection it reaches the listeners of the same process (development, tests). The topics a listener consumes are created if they do not exist. The Redis cache: `~cacheGet(key)`, `~cacheSet(key, value, 60)`.
+
+```nuclear
+listener TaskEvents
+  created: string[] = []
+
+  @consumer("tasks.created")
+  onCreated(event: <string, any>) void
+    created.add(event["title"])
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+tools = '''
+**LangChain tools**: each method with a doc comment is a tool the model can call.
+
+Each method with a doc comment is a LangChain tool: the doc comment is the description the model reads and the parameters become its zod schema; a method without one is a helper of the others (never offered to the model).
+
+```nuclear
+tools TaskTools
+  // Creates a task with a title and a priority (1 high, 2 normal, 3 low).
+  addTask(title: string, priority: int = 2) string
+    "created ${title} (${priority})"
+
+  label(title: string) string
+    title.upper()
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+agent = '''
+A **LangChain agent**: a model with tools and a system prompt, with memory per thread.
+
+A model with tools and a system prompt (LangChain `createAgent`, with memory per thread). Its tools are the `tools` it receives; `model` names the chat model connection (`Ollama`, `OpenAI`). `~assistant.ask(text, thread)` answers.
+
+```nuclear
+tools TaskTools
+  // Lists the pending tasks.
+  pending() string
+    "none"
+
+agent AssistantAgent(tools: TaskTools)
+  prompt: string = "You are a task assistant. Use the tools."
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+state = '''
+The **state of a graph** (a LangGraph Annotation.Root) and its type.
+
+A LangGraph `StateGraph`: `state` is its state (an `Annotation.Root`; `messages: Messages` keeps a conversation). Each method of the `graph` is a node that receives the state and returns what changes; `@start` marks the first one and `@next("node")` the one after it (`"end"` ends). `~planner.run(state, thread)` runs it and gives the final state, typed.
+
+```nuclear
+state PlanState
+  goal: string
+  titles: string[]
+
+@state(PlanState)
+graph Planner
+  @start
+  @next("end")
+  split(state: PlanState) <string, any>
+    { "titles": state.goal.split(",") }
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+graph = '''
+A **LangGraph StateGraph**: its methods are the nodes.
+
+A LangGraph `StateGraph`: `state` is its state (an `Annotation.Root`; `messages: Messages` keeps a conversation). Each method of the `graph` is a node that receives the state and returns what changes; `@start` marks the first one and `@next("node")` the one after it (`"end"` ends). `~planner.run(state, thread)` runs it and gives the final state, typed.
+
+```nuclear
+state PlanState
+  goal: string
+  titles: string[]
+
+@state(PlanState)
+graph Planner
+  @start
+  @next("end")
+  split(state: PlanState) <string, any>
+    { "titles": state.goal.split(",") }
+```
+
+Full rules: `nuclear help nestjs` (spec/nestjs.md).
+'''
+
+[decorators]
+
+entity = '''
+On an entity: `@entity("table")` names its table (default: the name in snake_case).
+'''
+
+primary = '''
+On an entity field: the primary key. `@primary()`: the app gives it (`@primary(length = 8)` for a code);
+`@primary(generated = true)`: the database gives it (auto increment for an `int`, a uuid for a `string`).
+'''
+
+manyToOne = '''
+On an entity field `x?: T` (T an entity): this row points to one row of T through the column of the field `xId`.
+Arguments: `inverse` (the `@oneToMany` field of T), `onDelete` (`"cascade"`, `"set null"`, `"restrict"`). Loaded only
+when a query asks for it: `relations("x")`.
+
+```nuclear
+@manyToOne(inverse = "tasks", onDelete = "cascade")
+project?: Project
+projectId: int
+```
+'''
+
+oneToMany = '''
+On an entity field `xs?: T[]`: the rows of T that point to this one; `inverse` (required) is their `@manyToOne`
+field. Loaded only when a query asks for it: `relations("xs")`.
+
+```nuclear
+@oneToMany(inverse = "project")
+tasks?: Task[]
+```
+'''
+
+manyToMany = '''
+On an entity field `xs?: T[]`: many rows of T, and T has many of these (`inverse`: its field back). One side has
+`@joinTable()`: the join table `<its table>_<field>` (`tasks_tags`, columns `task_id`, `tag_id`). Setting the list and
+saving writes the join table.
+'''
+
+joinTable = '''
+On the side of a `@manyToMany` that owns the join table (`<table>_<field>`).
+'''
+
+oneToOne = '''
+On an entity field `x?: T`: one row of T and one of this. The side with `@joinColumn()` keeps the column `xId`;
+`inverse` is the field back, `onDelete` as `@manyToOne`.
+'''
+
+joinColumn = '''
+On the side of a `@oneToOne` that keeps the column (`xId`, a field of its own).
+'''
+
+transactional = '''
+On a use case's `exec`: every repository call inside shares one transaction of the default database. An `Err` or an
+error rolls it back; an `Ok` commits it.
+
+```nuclear
+usecase CloseProject(tasks: TaskRepository, projects: ProjectRepository)
+  @transactional
+  exec(id: int, into: int) Result<Error, Moved>
+    ~projects.find(into)
+    moved = ~tasks.move(id, into)
+    ~projects.remove(id)
+    Ok(Moved(count = moved))
+```
+'''
+
+column = '''
+On an entity field: a column. Arguments: `length`, `unique`, `name`.
+'''
+
+created = '''
+On an entity field: when the row was inserted (`@CreatedAt`).
+'''
+
+updated = '''
+On an entity field: when the row last changed (`@UpdatedAt`).
+'''
+
+repository = '''
+On a repository: `@repository(Entity)` when the name is not `<Entity>Repository`.
+'''
+
+controller = '''
+On a controller: `@controller("tasks")`, the prefix of its routes (default: the name without `Controller`, in kebab-case).
+'''
+
+get = '''
+On a controller method: `@get("{id}")`, a GET route (`{id}` is a path parameter). Also `@post` (201), `@put`, `@patch`, `@delete`.
+'''
+
+post = '''
+On a controller method: a POST route; answers 201. A model parameter is the JSON body.
+'''
+
+put = '''
+On a controller method: a PUT route (replaces the resource); the route is its argument.
+'''
+
+patch = '''
+On a controller method: a PATCH route (changes some fields); the route is its argument.
+'''
+
+delete = '''
+On a controller method: a DELETE route (removes the resource); the route is its argument.
+'''
+
+status = '''
+On a controller method: `@status(204)`, the HTTP status of a successful answer.
+'''
+
+required = '''
+On a model field: it cannot be empty (`IsNotEmpty`).
+'''
+
+email = '''
+On a model field: the value must be an e-mail address (class-validator `IsEmail`); otherwise a 400.
+'''
+
+url = '''
+On a model field: the value must be a URL (class-validator `IsUrl`); otherwise a 400.
+'''
+
+minLength = '''
+On a model field: `@minLength(n)`, at least n characters.
+'''
+
+maxLength = '''
+On a model field: `@maxLength(n)`, at most n characters.
+'''
+
+min = '''
+On a model field: `@min(n)`, the number must be at least n (class-validator `Min`).
+'''
+
+max = '''
+On a model field: `@max(n)`, the number must be at most n (class-validator `Max`).
+'''
+
+pattern = '''
+On a model field: `@pattern(r"^[a-z]+$")`, it must match.
+'''
+
+test = '''
+On a tests method: `@test("what it checks")`, one test.
+'''
+
+state = '''
+On a graph: `@state(StateName)`, the state its nodes receive and change (an Annotation.Root of a `state`).
+'''

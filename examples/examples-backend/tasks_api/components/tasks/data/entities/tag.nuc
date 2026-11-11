@@ -1,0 +1,9 @@
+// A label of tasks (table tags); a task has many tags and a tag many tasks (table tasks_tags).
+@entity("tags")
+Tag()
+  @primary(generated = true)
+  id: int
+  @column(length = 50, unique = true)
+  label: string
+  @manyToMany(inverse = "tags")
+  tasks?: Task[]

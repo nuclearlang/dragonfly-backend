@@ -1,0 +1,10 @@
+// Closes a project: its tasks move to another one and it is removed, all in one transaction.
+usecase CloseProject(tasks: TaskRepository, projects: ProjectRepository)
+  @transactional
+  exec(id: int, into: int) Result<Error, Moved>
+    ~projects.find(into)
+    moved = ~tasks.move(id, into)
+    removed = ~projects.remove(id)
+    if not removed
+      return Err(NotFound("project ${id} not found"))
+    Ok(Moved(count = moved))
