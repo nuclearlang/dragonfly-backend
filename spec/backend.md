@@ -16,7 +16,7 @@ A backend's build also writes its **contract** (`.nuclear/contract.json`: contro
 
 ```
 tasks_api/
-├── config.nuc                         dragonfly(...), app(...), plugins(...)
+├── config.nuc                         dragonfly(...), app(...), plugins(...), dependencies(...)
 ├── config/project_config.nuc          appConfig: the connections of the app
 ├── components/tasks/
 │   ├── tasks_appcomponent.nuc         appcomponent: what the rest of the app sees
@@ -33,7 +33,9 @@ tasks_api/
 ```
 
 `config.nuc` is the only manifest ([projects.md](https://github.com/nuclearlang/nuclear/blob/main/spec/projects.md) §1): the platform and dialect, the app and the
-plugins it uses. `nuclear build .` (or the `dragonfly` CLI) writes `build/`: the dialect's project, never edited.
+plugins it uses, and `dependencies(name = "version")` for a package the framework does not bring (a version that starts
+with `.` or `/` is a folder on disk; its type definitions go in the project's `defs/`, projects.md §3.2). `nuclear build
+.` (or the `dragonfly` CLI) writes `build/`: the dialect's project, never edited.
 
 ```nuclear
 dragonfly(platform = "backend", dialect = "fastapi")
@@ -85,7 +87,7 @@ Task()
 
 #### Relations (ADR-0100)
 
-TypeORM's decorators; the related entity is the field's type, never repeated:
+Decorators on the relation field; the related entity is the field's type, never repeated:
 
 | Decorator | On | Means |
 |---|---|---|
@@ -147,6 +149,25 @@ repository TaskRepository
   page(page: int, size: int = 20) Page<Task>
     orderBy("id")
     paginate(page, size)
+```
+
+#### An HTTP repository (ADR-0103)
+
+A repository can also be another API, with the mobile platform's words: `@repository(path = "...")` and methods
+without a body that carry `@get`, `@post`, `@put`, `@patch` or `@delete` (`path = ":id"`). They call the `Http(baseUrl)`
+connection (§2.8; `connection = "name"` picks another): `:name` in a path takes the parameter of that name, the
+other parameters go to the query (GET, DELETE) or to the JSON body (POST, PUT, PATCH: a single model parameter is the
+body). The answer is the method's type; an error status is the `Err` of a `Result` (404 `NotFound`, 400/422
+`Invalid`, 401 `Unauthorized`, 403 `Forbidden`, 409 `Conflict`, any other an `Error` with that status).
+
+```nuclear
+@repository(path = "character")
+repository CharacterRepository
+  @get(path = ":id")
+  one(id: int) Result<Error, Character>
+
+  @get
+  page(page: int) Result<Error, CharacterPage>
 ```
 
 ### 2.3 Model
@@ -259,6 +280,7 @@ The connections of the app (`appConfig`, `config/project_config.nuc`) and of a c
 | `Redis(url)` | `redis` | `url` |
 | `Kafka(servers, group)` | `kafka` | `servers` (`"a:9092,b:9092"`), `group` |
 | `Ollama(model, baseUrl)` `OpenAI(model, apiKey)` | `ollama` `openai` (both `ai`) | the chat model; `Embeddings(model)` for vectors (`"ollama:nomic-embed-text"`, `"openai:text-embedding-3-small"`) |
+| `Http(baseUrl, headers, timeout)` | — | another API, for the HTTP repositories (§2.2): `baseUrl` (`"https://rickandmortyapi.com/api"`), `headers` (an API key), `timeout` (seconds) |
 | `Chroma(collection, embeddings, url)` | `chroma` | a vector store on a Chroma server (`url`, default `http://localhost:8000`); `embeddings` names the `Embeddings` connection |
 
 ```nuclear
@@ -361,7 +383,22 @@ graph Planner(tasks: TasksAppComponent)
     { "created": created }
 ```
 
-### 2.13 Tests
+### 2.13 Generators
+
+`dragonfly gen resource <component> <Name>` writes the finished, compiling code of a resource (ADR-0103): its models
+(nested objects become models named `<Name><Key>`; a paged answer gives `<Name>Page`), the repository (`--source rest:<base url>`: an HTTP repository over `Http(baseUrl)`, the app's connection added when missing; `--source db`: an entity, a `New<Name>` model and a paged query), one use
+case per action (`--actions list,get,search,create,update,delete`), their aliases in the facade, and the controller with the routes; a database resource also gets its tests. The fields
+come from an example answer (`--from-json <file|url>`), a spec (`--from-spec <spec.md>`: its example answer, else its
+`Key | Type` table; a `GET https://...` line gives the API) or `--fields "id:int name:string"`. A file that exists is
+never overwritten (the facade gets only the missing aliases); a name another file declares stops it before it writes.
+`dragonfly gen inspect` answers what the project has. The agent writes only what is not standard: a use case with
+its own rules, a view's details.
+
+```sh
+dragonfly gen resource characters Character --from-json https://rickandmortyapi.com/api/character
+```
+
+### 2.14 Tests
 
 In `test/*_test.nuc`: `tests Name` + `@test("what it checks")` methods. Every test runs with the project's
 connections and the databases in memory; `inject<X>()` gives the instances; `expect(condition)` asserts;

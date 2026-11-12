@@ -45,13 +45,14 @@ test (ADR-0093 §9) builds one example with both. Contract file: `dialects/backe
   Kafka(servers, group), OpenAI, Ollama, Embeddings, Chroma(collection, embeddings, url); plain `postgres://` URLs get
   their async driver in `_with_driver`; `env`), `orm` (Entity, column helpers, `schema_of`), `repository` (CRUD, Query, operators),
   `web` (controller decorators, `router_of`: Result → HTTP, entity ↔ schema), `app` (`create_app`, lifespan,
-  `connection`), optional `ai` (Tools, Agent, Graph, `start`/`next`, `Messages`) and `events` (listener, `publish`,
+  `connection`), `http` (`Http(base_url)` connection, `HttpRepository`: bodiless `@get`/`@post`... methods, error
+  statuses → `Err`, the answer validated by the declared type; ADR-0103), optional `ai` (Tools, Agent, Graph, `start`/`next`, `Messages`) and `events` (listener, `publish`,
   cache), `testing` (`running`, `client`, `FakeModel`, `memory_database`), `validators`. Tests:
   `packages/dragonfly-py/tests`; `dragonfly.migrate` (Alembic: `make` over a scratch SQLite at head, `up`, `down`;
   `create_app` keeps the config in `app.state` for it). Type definitions `defs/python/`: `tools/defs/python/generate.sh` from
   `tools/python/.venv` (`pip install -e packages/dragonfly-py --config-settings editable_mode=compat`).
 - **`packages/dragonfly-nest`** (npm `dragonfly-nest`, ESM): `result`, `errors`, `config` (databases with `url` or
-  `file` + `createTables`, `env`, `databaseOf`), `repository`, `web` (`ResultInterceptor`, `configureApp`), `app`
+  `file` + `createTables`, `env`, `databaseOf`), `repository`, `web` (`ResultInterceptor`, `configureApp`), `http` (`Http`, HTTP repositories; the answer is the raw JSON, not decoded by the model), `app`
   (`createApp`, `Connections`, `inject`, `connection`, `register`), `migrate` (bin `dragonfly-nest-migrate`:
   `schemaOf`, `diff`, `render`, `make`/`up`/`down`; reads `entities` and `config` the app module exports); entry points `dragonfly-nest/events` (Redis,
   Kafka(servers, group), Listener, `consumer`, `publish`, cache), `dragonfly-nest/ai` (ChatModel/Ollama/OpenAI,

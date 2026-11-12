@@ -5,5 +5,6 @@ export * from './result.js';
 export * from './errors.js';
 export * from './config.js';
 export * from './repository.js';
+export * from './http.js';
 export * from './web.js';
 export * from './app.js';

@@ -1,0 +1,5 @@
+// The public holidays of a country (an HTTP repository: another API, ADR-0103), to warn when a task is due on one.
+@repository(path = "PublicHolidays")
+repository HolidayRepository
+  @get(path = ":year/:country")
+  of(year: int, country: string) Result<Error, Holiday[]>

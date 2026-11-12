@@ -41,14 +41,14 @@ Error = "AppError"
 
 [names]
 written = ["Result", "Ok", "Err", "AppError", "Awaitable", "Annotated", "MinLen", "MaxLen", "Ge", "Le",
-  "AfterValidator", "is_email", "is_url", "Repository", "Mapped", "BaseModel", "TypedDict", "AppConfig", "ComponentConfig"]
+  "AfterValidator", "Field", "AliasChoices", "is_email", "is_url", "Repository", "Mapped", "BaseModel", "TypedDict", "AppConfig", "ComponentConfig"]
 
 [auto_imports]
 "dragonfly" = [
   "Result", "Ok", "Err", "AppError", "NotFound", "Invalid", "Conflict", "Forbidden", "Unauthorized",
   "inject", "provide", "bind", "env", "connection",
   "AppConfig", "ComponentConfig", "Postgres", "MySQL", "MariaDB", "SQLite", "Redis", "Kafka", "OpenAI", "Ollama", "Embeddings", "Chroma",
-  "Entity", "Mapped", "primary", "column", "created", "updated",
+  "Entity", "Mapped", "primary", "column", "created", "updated", "Http", "HttpRepository",
   "many_to_one", "one_to_many", "many_to_many", "one_to_one", "transactional", "Page",
   "Repository", "gt", "gte", "lt", "lte", "ne", "like", "ilike", "one_of", "is_null", "between",
   "controller", "get", "post", "put", "patch", "delete", "status",
@@ -59,14 +59,14 @@ written = ["Result", "Ok", "Err", "AppError", "Awaitable", "Annotated", "MinLen"
 "dragonfly.testing" = ["FakeModel", "memory_database"]
 "dragonfly.validators" = ["is_email", "is_url"]
 # in a model, Field is pydantic's (not the dataclasses class)
-"pydantic" = ["Field", "AfterValidator"]
+"pydantic" = ["Field", "AfterValidator", "AliasChoices"]
 "annotated_types" = ["MinLen", "MaxLen", "Ge", "Le"]
 
 [decorators]
 # read by the templates (decor), not written as Python decorators
 consumed = ["entity", "primary", "column", "created", "updated", "repository",
   "manyToOne", "oneToMany", "manyToMany", "oneToOne", "joinTable", "joinColumn", "state", "test",
-  "required", "email", "url", "minLength", "maxLength", "min", "max", "pattern"]
+  "required", "email", "url", "minLength", "maxLength", "min", "max", "pattern", "key"]
 
 
 # --- configuration: the connections of the app and of each component ---
@@ -103,10 +103,12 @@ constructor = ""
 [kinds.repository]
 description = "repository NameRepository + methods whose lines build a query (where, order_by, limit, get_one, get_many...) → Repository[Entity] with CRUD"
 inherits = ["Repository", "Query"]
-imports = ["Repository", "Awaitable"]
+imports = ["Repository", "HttpRepository", "Awaitable"]
 template = { file = "templates/repository.tpl" }
 [kinds.repository.syntax]
 method = { file = "templates/repository_method.tpl" }
+# a method without a body and with @get/@post/@put/@patch/@delete: an HTTP call (`@repository(path = "...")`, ADR-0103)
+method_signature = { file = "templates/repository_http_method.tpl" }
 self_member = "q.{{name}}"
 
 # --- domain ---
@@ -126,6 +128,7 @@ returns = "Result"
 template = { file = "templates/injectable.tpl" }
 
 [kinds.appcomponent]
+needs_body = true
 description = "appcomponent Name + aliases to the use cases (find(id) = GetCharacter.exec) → the facade of a component"
 alias_via = "inject"
 template = { file = "templates/injectable.tpl" }
@@ -195,6 +198,8 @@ expect = { template = "assert {{args}}" }
 # what the dragonfly CLI runs in build/ (ADR-0072): install the runtime and the app, run it, test it
 [toolchain]
 install = "python3 -m venv .venv && .venv/bin/pip install -q {{packages}}/dragonfly-py && .venv/bin/pip install -q -e '.[test]'"
+# a dependency that is a folder, installed again by `dragonfly install` (its version does not change with its code)
+install_local = ".venv/bin/pip install -q --no-deps --force-reinstall {{path}}"
 run = ".venv/bin/uvicorn app.main:app --reload --port {{port}}"
 test = ".venv/bin/python -m pytest -q"
 # where the server answers (the editor's debugger and HTTP tool), what exists once installed, its ready line
@@ -338,4 +343,7 @@ repository = ["usecase", "aggregate", "tools"]
 new = "AppError({{arg0}})"
 
 [library.error]
-message = "{{recv}}.message"
+# an AppError (a Result's error) has `message`; a caught exception does not: its text is str(e)
+message = { template = "_message({{recv}})", helper = """
+def _message(e: object) -> str:
+    return str(getattr(e, "message", e))""" }

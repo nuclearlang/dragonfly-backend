@@ -2,10 +2,16 @@ Metadata-Version: 2.4
 Name: dragonfly-py
 Version: 0.1.0
 Summary: Dragonfly for Python: the runtime of the fastapi dialect of NuclearLang (FastAPI, SQLAlchemy 2, LangChain, LangGraph)
+License-Expression: Apache-2.0
+Project-URL: Homepage, https://nuclearlang.github.io
+Project-URL: Repository, https://github.com/nuclearlang/dragonfly-backend
 Requires-Python: >=3.12
+License-File: LICENSE
 Requires-Dist: fastapi>=0.115
 Requires-Dist: pydantic>=2.9
 Requires-Dist: sqlalchemy[asyncio]>=2.0.36
+Requires-Dist: alembic>=1.14
+Requires-Dist: httpx>=0.27
 Provides-Extra: core
 Provides-Extra: ai
 Requires-Dist: langchain>=1.0; extra == "ai"
@@ -33,3 +39,4 @@ Requires-Dist: pytest>=8; extra == "test"
 Requires-Dist: pytest-asyncio>=0.24; extra == "test"
 Requires-Dist: httpx>=0.27; extra == "test"
 Requires-Dist: aiosqlite>=0.20; extra == "test"
+Dynamic: license-file

@@ -48,7 +48,7 @@ written = ["Result", "Ok", "Err", "AppError", "Injectable", "Controller", "Model
   "PrimaryKey", "AutoIncrement", "CreatedAt", "UpdatedAt", "InjectModel", "Repository", "Param", "Body", "Query",
   "ParseIntPipe", "ParseBoolPipe", "ParseFloatPipe", "Get", "Post", "Put", "Patch", "Delete", "HttpCode",
   "IsString", "IsInt", "IsNumber", "IsBoolean", "IsOptional", "IsNotEmpty", "IsEmail", "IsUrl", "MinLength",
-  "MaxLength", "Min", "Max", "Matches", "IsArray", "ValidateNested", "Type", "IsDate", "AppConfig", "ComponentConfig",
+  "MaxLength", "Min", "Max", "Matches", "IsArray", "ValidateNested", "Type", "Expose", "IsDate", "AppConfig", "ComponentConfig",
   "startTestApp", "stopTestApp", "INestApplication", "describe", "it", "beforeEach", "afterEach",
   "Listener", "Tools", "Agent", "Graph", "Annotation", "Messages", "tool", "z", "StructuredToolInterface"]
 
@@ -58,7 +58,7 @@ consumed = [
   "entity", "primary", "column", "created", "updated", "repository",
   "manyToOne", "oneToMany", "manyToMany", "oneToOne", "joinTable", "joinColumn", "controller",
   "get", "post", "put", "patch", "delete", "status",
-  "required", "email", "url", "minLength", "maxLength", "min", "max", "pattern", "test", "state",
+  "required", "email", "url", "minLength", "maxLength", "min", "max", "pattern", "test", "state", "key",
 ]
 
 # --- configuration ---
@@ -87,9 +87,12 @@ field = { file = "templates/entity_field.tpl" }
 [kinds.repository]
 description = "repository NameRepository + methods whose lines build a query (where, orderBy, limit, getOne, getMany...) → Repository<Entity> with CRUD"
 inherits = ["Repository", "Query"]
+imports = ["HttpRepository"]
 template = { file = "templates/repository.tpl" }
 [kinds.repository.syntax]
 method = { file = "templates/repository_method.tpl" }
+# a method without a body and with @get/@post/@put/@patch/@delete: an HTTP call (`@repository(path = "...")`, ADR-0103)
+method_signature = { file = "templates/repository_http_method.tpl" }
 self_member = "q.{{name}}"
 
 # --- domain ---
@@ -108,6 +111,7 @@ template = { file = "templates/injectable.tpl" }
 ctor_param = "{{decorators}}private readonly {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
 
 [kinds.appcomponent]
+needs_body = true
 description = "appcomponent Name + aliases to the use cases (find() = GetTask.exec) → the facade of a component; the use cases are injected"
 alias_via = "constructor"
 template = { file = "templates/injectable.tpl" }
@@ -206,6 +210,8 @@ expect = { template = "assert.ok({{args}})" }
 # what the dragonfly CLI runs in build/ (ADR-0072): install the runtime and the app, run it, test it
 [toolchain]
 install = "npm install {{packages}}/dragonfly-nest && npm install"
+# a dependency that is a folder, installed again by `dragonfly install` (its version does not change with its code)
+install_local = "npm install --install-links {{path}}"
 # `dragonfly build` compiles too once the app is installed: the running server (node --watch) restarts on it
 compile = "npx tsc -p tsconfig.json"
 run = "npm run dev"
@@ -350,8 +356,8 @@ config = "@nestjs/config"
 
 [auto_imports]
 # the definitions give every other name; these choose the module when two packages export the same name
-"class-transformer" = ["Transform", "Type"]
-"dragonfly-nest" = ["Result", "Ok", "Err", "Entity", "Repository", "Page", "Related", "joinTable", "transactional", "Connection", "Database", "inject"]
+"class-transformer" = ["Transform", "Type", "Expose"]
+"dragonfly-nest" = ["Result", "Ok", "Err", "Entity", "Repository", "Page", "Related", "joinTable", "transactional", "Connection", "Database", "inject", "Http", "HttpRepository"]
 # the optional parts of the runtime: only a project that enables their plugin imports them
 "dragonfly-nest/events" = ["publish", "Redis", "Kafka", "Listener", "consumer", "cacheGet", "cacheSet"]
 "dragonfly-nest/testing" = ["startTestApp", "stopTestApp"]
@@ -367,4 +373,5 @@ config = "@nestjs/config"
 new = "new AppError({{arg0}})"
 
 [library.error]
-message = "{{recv}}.message"
+# an AppError (a Result's error) and a caught exception (`unknown` in TypeScript) both give their message this way
+message = "({{recv}} as AppError).message"

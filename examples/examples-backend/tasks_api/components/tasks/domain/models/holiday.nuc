@@ -1,0 +1,4 @@
+// A public holiday, as the holidays API answers it.
+Holiday
+  date: string
+  name: string

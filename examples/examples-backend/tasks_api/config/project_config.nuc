@@ -1,6 +1,7 @@
-// The connections of the app: the tasks database and the local Ollama model.
+// The connections of the app: the tasks database, the local Ollama model and the public holidays API.
 appConfig ProjectConfig
   connections: Connection[] = [
     SQLite(file = env("DATABASE", "tasks.sqlite"), createTables = true),
     Ollama(model = env("CHAT_MODEL", "qwen3.5:4b"), baseUrl = env("OLLAMA_URL", "http://localhost:11434")),
+    Http(baseUrl = env("HOLIDAYS_URL", "https://date.nager.at/api/v3"), timeout = 5),
   ]

@@ -4,9 +4,9 @@
 [kinds]
 
 entity = '''
-A **table** (SQLAlchemy 2), declared like a TypeORM entity.
+A **table** of the project's database.
 
-A table. In `components/<c>/data/entities/` the kind is given by the folder; elsewhere write `entity`. `@entity("table")` names the table (default: the name in snake_case). Each field is a column: `@primary(generated = true)` (a key the database gives), `@primary()` (a key the app gives), `@column(length = 100, unique = true, index = true, nullable = true, name = "x")`, `@created()`, `@updated()`; without a decorator it is a column too. Relations, as in TypeORM: `@manyToOne` (+ its column `<name>Id`), `@oneToMany`, `@manyToMany` + `@joinTable`, `@oneToOne` + `@joinColumn`; a relation field is optional and loaded only by `relations(...)` (N0308). Its SQL type comes from the field type; `name?: T` is nullable; a default goes to the column.
+A table. In `components/<c>/data/entities/` the kind is given by the folder; elsewhere write `entity`. `@entity("table")` names the table (default: the name in snake_case). Each field is a column: `@primary(generated = true)` (a key the database gives), `@primary()` (a key the app gives), `@column(length = 100, unique = true, index = true, nullable = true, name = "x")`, `@created()`, `@updated()`; without a decorator it is a column too. Relations: `@manyToOne` (+ its column `<name>Id`), `@oneToMany`, `@manyToMany` + `@joinTable`, `@oneToOne` + `@joinColumn`; a relation field is optional and loaded only by `relations(...)` (N0308). Its SQL type comes from the field type; `name?: T` is nullable; a default goes to the column.
 
 ```nuclear
 @entity("characters")
@@ -20,7 +20,7 @@ entity Character()
   species?: string
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 repository = '''
@@ -41,13 +41,22 @@ repository CharacterRepository
     getMany()
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Another API instead of the database (ADR-0103): `@repository(path = "character")` and methods without a body with `@get(path = ":id")`, `@post`, `@put`, `@patch` or `@delete`; they call the `Http(baseUrl)` connection, `:id` takes the parameter `id`, the rest goes to the query (GET) or the body, an error status is the `Err`.
+
+```nuclear
+@repository(path = "character")
+repository CharacterRepository
+  @get(path = ":id")
+  one(id: int) Result<Error, Character>
+```
+
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 model = '''
-A **pydantic model**: what the API reads and answers, validated.
+A **model**: what the API reads and answers, validated.
 
-What the API reads and answers: a pydantic model (in `domain/models/` by folder). The same rule decorators as the nestjs dialect and Dragonfly's forms become pydantic constraints: `@required`, `@minLength(n)`, `@maxLength(n)`, `@min(n)`, `@max(n)`, `@pattern(r"...")`, `@email`, `@url`. An invalid body is a 422.
+What the API reads and answers (in `domain/models/` by folder). The rule decorators check it: `@required`, `@minLength(n)`, `@maxLength(n)`, `@min(n)`, `@max(n)`, `@pattern(r"...")`, `@email`, `@url`. An invalid body is a 422.
 
 ```nuclear
 model NewCharacter
@@ -59,7 +68,7 @@ model NewCharacter
   contact?: string
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 usecase = '''
@@ -86,7 +95,7 @@ usecase CreateCharacter(characters: CharacterRepository)
     Ok(~characters.save(Character(name = input.name, status = input.status)))
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 appcomponent = '''
@@ -100,13 +109,13 @@ appcomponent CharactersAppComponent
   create() = CreateCharacter.exec
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 controller = '''
-**REST routes** (FastAPI), declared like NestJS.
+**REST routes** of the API.
 
-REST routes over FastAPI, like NestJS: `@controller("path")` and `@get`, `@post` (201), `@put`, `@patch`, `@delete` with the route (`"{id}"`: a path parameter; segments without a leading slash). A parameter that is a model is the JSON body; an entity is read and answered through its pydantic schema. A `Result` answers its value, or the error's status and message.
+REST routes: `@controller("path")` and `@get`, `@post` (201), `@put`, `@patch`, `@delete` with the route (`"{id}"`: a path parameter; segments without a leading slash). A parameter that is a model is the JSON body; an entity is read and answered as its fields. A `Result` answers its value, or the error's status and message.
 
 ```nuclear
 @controller("characters")
@@ -120,7 +129,7 @@ controller CharactersController(characters: CharactersAppComponent)
     ~characters.create(input)
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 appConfig = '''
@@ -138,7 +147,7 @@ appConfig ProjectConfig
   ]
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 config = '''
@@ -156,13 +165,13 @@ appConfig ProjectConfig
   ]
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 tools = '''
-**LangChain tools**: each public method with a doc comment is a tool the model can call.
+**Tools** for a model: each public method with a doc comment is a tool the model can call.
 
-Each public method with a doc comment is a LangChain tool, and the doc comment is the description the model reads; a method without one is a helper of the others (never offered to the model). A tool can use the component's repositories.
+Each public method with a doc comment is a tool, and the doc comment is the description the model reads; a method without one is a helper of the others (never offered to the model). A tool can use the component's repositories.
 
 ```nuclear
 tools CharacterTools(characters: CharacterRepository)
@@ -173,13 +182,13 @@ tools CharacterTools(characters: CharacterRepository)
       Err(_) -> "nobody is called ${name}"
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 agent = '''
-A **LangChain agent**: a model with tools and a system prompt, with memory per thread.
+An **agent**: a model with tools and a system prompt, with memory per thread.
 
-A model with tools and a system prompt (LangChain `create_agent`, with memory per thread). Its tools are the `tools` it receives; `model` names the chat model connection. `~guide.ask(text, thread = "user-1")` answers; `stream(text)` gives the answer piece by piece.
+A model with tools and a system prompt, with memory per thread. Its tools are the `tools` it receives; `model` names the chat model connection. `~guide.ask(text, thread = "user-1")` answers; `stream(text)` gives the answer piece by piece.
 
 ```nuclear
 agent Guide(tools: CharacterTools)
@@ -187,13 +196,13 @@ agent Guide(tools: CharacterTools)
   prompt: string = "You answer questions about the characters. Use the tools."
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 state = '''
-The **state of a graph** (a TypedDict).
+The **state of a graph**.
 
-A LangGraph `StateGraph`: `state` is its state (a `TypedDict`; `messages: Messages` keeps a conversation). Each method of the `graph` is a node that receives the state and returns what changes; `@start` marks the first one and `@next("node")` the one after it (`"end"` ends). A node can also return `Command(goto = "node", update = {...})` to choose at run time. `~review.run(state, thread)` runs it.
+A graph of steps: `state` is its state (`messages: Messages` keeps a conversation). Each method of the `graph` is a node that receives the state and returns what changes; `@start` marks the first one and `@next("node")` the one after it (`"end"` ends). A node can also return `Command(goto = "node", update = {...})` to choose at run time. `~review.run(state, thread)` runs it.
 
 ```nuclear
 state ReviewState
@@ -208,13 +217,13 @@ graph Review(guide: Guide)
     { "answer": ~guide.ask(state.question) }
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 graph = '''
-A **LangGraph StateGraph**: its methods are the nodes.
+A **graph** of steps: its methods are the nodes.
 
-A LangGraph `StateGraph`: `state` is its state (a `TypedDict`; `messages: Messages` keeps a conversation). Each method of the `graph` is a node that receives the state and returns what changes; `@start` marks the first one and `@next("node")` the one after it (`"end"` ends). A node can also return `Command(goto = "node", update = {...})` to choose at run time. `~review.run(state, thread)` runs it.
+A graph of steps: `state` is its state (`messages: Messages` keeps a conversation). Each method of the `graph` is a node that receives the state and returns what changes; `@start` marks the first one and `@next("node")` the one after it (`"end"` ends). A node can also return `Command(goto = "node", update = {...})` to choose at run time. `~review.run(state, thread)` runs it.
 
 ```nuclear
 state ReviewState
@@ -229,7 +238,7 @@ graph Review(guide: Guide)
     { "answer": ~guide.ask(state.question) }
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 listener = '''
@@ -244,13 +253,13 @@ listener CharacterEvents(characters: CharactersAppComponent)
     ~characters.create(input)
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 tests = '''
-A group of **pytest tests** (in `test/`, written to `tests/`).
+A group of **tests** (in `test/`).
 
-In `test/*_test.nuc`: `tests Name` + `@test("what it checks")` methods → a pytest class. Every test runs with the project's connections and the databases in memory (`tests/conftest.py`); `inject<X>()` gives the instances. `expect(condition)` is `assert`. `dragonfly.testing.FakeModel([...])` answers fixed texts.
+In `test/*_test.nuc`: `tests Name` + `@test("what it checks")` methods. Every test runs with the project's connections and the databases in memory; `inject<X>()` gives the instances; `expect(condition)` checks. `FakeModel([...])` answers fixed texts.
 
 ```nuclear
 tests Characters
@@ -262,7 +271,7 @@ tests Characters
     expect(missing.error.status == 404)
 ```
 
-Full rules: `nuclear help fastapi` (spec/fastapi.md).
+Full rules: `nuclear help backend` (spec/backend.md).
 '''
 
 service = '''
@@ -397,7 +406,7 @@ On a listener method: `@consumer("topic")`, receives each message of the Kafka t
 '''
 
 test = '''
-On a tests method: `@test("what it checks")`, a pytest test.
+On a tests method: `@test("what it checks")`, one test.
 '''
 
 required = '''
@@ -405,29 +414,64 @@ On a model field: it cannot be empty (a text of at least one character); otherwi
 '''
 
 email = '''
-On a model field: the value must be an e-mail address (`is_email`, run by pydantic); otherwise a 422.
+On a model field: the value must be an e-mail address; otherwise a 422.
 '''
 
 url = '''
-On a model field: the value must be an http(s) URL (`is_url`, run by pydantic); otherwise a 422.
+On a model field: the value must be an http(s) URL; otherwise a 422.
+'''
+
+key = '''
+On a model field: `@key("air_date")`, the field's name in the JSON when it is not the field's (an API that writes
+snake_case): the answer is read by it and written back with it. `dragonfly gen` writes it.
+
+```nuclear
+Episode
+  id: int
+  @key("air_date")
+  airDate: string
+```
 '''
 
 minLength = '''
-On a model field: `@minLength(n)`, the text has at least n characters (pydantic `MinLen`).
+On a model field: `@minLength(n)`, the text has at least n characters.
 '''
 
 maxLength = '''
-On a model field: `@maxLength(n)`, the text has at most n characters (pydantic `MaxLen`).
+On a model field: `@maxLength(n)`, the text has at most n characters.
 '''
 
 min = '''
-On a model field: `@min(n)`, the number must be at least n (pydantic `Ge`).
+On a model field: `@min(n)`, the number must be at least n.
 '''
 
 max = '''
-On a model field: `@max(n)`, the number must be at most n (pydantic `Le`).
+On a model field: `@max(n)`, the number must be at most n.
 '''
 
 pattern = '''
 On a model field: `@pattern(r"^[a-z]+$")`, the text must match the regular expression.
 '''
+
+# What this dialect writes underneath each word (its framework): the editor and `nuclear help` show it after the
+# word; the local agents never read it (they write only Nuclear).
+
+[underneath.kinds]
+entity = 'a SQLAlchemy 2 mapped class (declared like a TypeORM entity); the relations as in TypeORM.'
+model = 'a pydantic model; the rule decorators become pydantic constraints.'
+controller = 'a FastAPI router (declared like a NestJS controller); an entity is answered through its pydantic schema.'
+tools = "LangChain tools: the doc comment is the tool's description."
+agent = 'a LangChain agent (`create_agent`).'
+state = 'a LangGraph state: a TypedDict.'
+graph = 'a LangGraph StateGraph; its state is a TypedDict.'
+tests = 'a pytest class written to `tests/`; the databases in memory come from `tests/conftest.py`; `expect` is `assert`; `FakeModel` is `dragonfly.testing.FakeModel`.'
+
+[underneath.decorators]
+key = 'pydantic `Field(validation_alias=AliasChoices(...), serialization_alias=...)`.'
+test = 'a pytest test method.'
+email = 'pydantic runs `is_email`.'
+url = 'pydantic runs `is_url`.'
+minLength = 'pydantic `MinLen`.'
+maxLength = 'pydantic `MaxLen`.'
+min = 'pydantic `Ge`.'
+max = 'pydantic `Le`.'

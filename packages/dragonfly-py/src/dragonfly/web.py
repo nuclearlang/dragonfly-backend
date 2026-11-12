@@ -10,7 +10,7 @@ import functools
 import inspect
 import typing
 from collections.abc import Callable
-from typing import Any, get_args, get_origin
+from typing import Any, overload, get_args, get_origin
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, create_model
@@ -48,24 +48,54 @@ def _route(method: str, path: str, status: int | None) -> Callable[[Callable[...
     return mark
 
 
-def get(path: str = "", status: int | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    return _route("GET", path, status)
+_Route = Callable[[Callable[..., Any]], Callable[..., Any]]
 
 
-def post(path: str = "", status: int | None = 201) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    return _route("POST", path, status)
+def _verb(method: str, path: str | Callable[..., Any], status: int | None) -> Any:
+    """`@get` (bare, Nuclear writes it so) or `@get("path")`: a route either way."""
+    if callable(path):
+        return _route(method, "", status)(path)
+    return _route(method, path, status)
 
 
-def put(path: str = "", status: int | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    return _route("PUT", path, status)
+@overload
+def get(path: Callable[..., Any]) -> Callable[..., Any]: ...
+@overload
+def get(path: str = "", status: int | None = None) -> _Route: ...
+def get(path: str | Callable[..., Any] = "", status: int | None = None) -> Any:
+    return _verb("GET", path, status)
 
 
-def patch(path: str = "", status: int | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    return _route("PATCH", path, status)
+@overload
+def post(path: Callable[..., Any]) -> Callable[..., Any]: ...
+@overload
+def post(path: str = "", status: int | None = 201) -> _Route: ...
+def post(path: str | Callable[..., Any] = "", status: int | None = 201) -> Any:
+    return _verb("POST", path, status)
 
 
-def delete(path: str = "", status: int | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    return _route("DELETE", path, status)
+@overload
+def put(path: Callable[..., Any]) -> Callable[..., Any]: ...
+@overload
+def put(path: str = "", status: int | None = None) -> _Route: ...
+def put(path: str | Callable[..., Any] = "", status: int | None = None) -> Any:
+    return _verb("PUT", path, status)
+
+
+@overload
+def patch(path: Callable[..., Any]) -> Callable[..., Any]: ...
+@overload
+def patch(path: str = "", status: int | None = None) -> _Route: ...
+def patch(path: str | Callable[..., Any] = "", status: int | None = None) -> Any:
+    return _verb("PATCH", path, status)
+
+
+@overload
+def delete(path: Callable[..., Any]) -> Callable[..., Any]: ...
+@overload
+def delete(path: str = "", status: int | None = None) -> _Route: ...
+def delete(path: str | Callable[..., Any] = "", status: int | None = None) -> Any:
+    return _verb("DELETE", path, status)
 
 
 def status(code: int) -> Callable[[Callable[..., Any]], Callable[..., Any]]:

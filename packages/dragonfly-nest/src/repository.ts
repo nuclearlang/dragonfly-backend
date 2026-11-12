@@ -1,6 +1,6 @@
 // Repositories: the table of one entity through Sequelize. Queries read like TypeORM's query builder:
 //   where({ userId: id })        equality, or an operator: { age: gt(18) }, { name: like('Ri%') }
-//   orderBy('name')              orderBy('name', true) = descending
+//   orderBy('name')              orderBy('name', { desc: true }) = descending (Nuclear: orderBy("name", desc = true))
 //   relations('tasks')           load a relation (ADR-0100); 'tasks.tags' loads one of its relations too
 //   getOne()                     Ok(entity) or Err(NotFound)
 //   paginate(page, size)         Page(items, page, size, total, pages)
@@ -106,7 +106,11 @@ export const lt = (v: unknown) => new Operator({ [Op.lt]: v });
 export const lte = (v: unknown) => new Operator({ [Op.lte]: v });
 export const ne = (v: unknown) => new Operator({ [Op.ne]: v });
 export const like = (pattern: string) => new Operator({ [Op.like]: pattern });
-export const iLike = (pattern: string) => new Operator({ [Op.iLike]: pattern });
+/** How `orderBy` sorts: Nuclear's named argument `desc = true` arrives as `{ desc: true }` (a boolean is accepted too). */
+export type SortOrder = { desc?: boolean } | boolean;
+
+// `ilike` is the platform's word (spec/backend.md), the same in every backend dialect
+export const ilike = (pattern: string) => new Operator({ [Op.iLike]: pattern });
 export const oneOf = (values: unknown[]) => new Operator({ [Op.in]: values });
 export const isNull = (isNullValue = true) => new Operator(isNullValue ? { [Op.is]: null } : { [Op.not]: null });
 export const between = (low: unknown, high: unknown) => new Operator({ [Op.between]: [low, high] });
@@ -166,8 +170,8 @@ export class Repository<T extends Model> {
     return this.query().where(conditions);
   }
 
-  orderBy(field: string, desc = false): Query<T> {
-    return this.query().orderBy(field, desc);
+  orderBy(field: string, order: SortOrder = {}): Query<T> {
+    return this.query().orderBy(field, order);
   }
 
   limit(n: number): Query<T> {
@@ -218,7 +222,8 @@ export class Query<T extends Model> {
     return this;
   }
 
-  orderBy(field: string, desc = false): Query<T> {
+  orderBy(field: string, order: SortOrder = {}): Query<T> {
+    const desc = typeof order === 'boolean' ? order : order.desc === true;
     this.orders.push([field, desc ? 'DESC' : 'ASC']);
     return this;
   }

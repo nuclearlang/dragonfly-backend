@@ -10,6 +10,8 @@ dependencies = [
   "sqlalchemy[asyncio]>=2.0.36",
   # the migrations of the database schema (dragonfly migrate, ADR-0100 §5)
   "alembic>=1.14",
+  # HTTP repositories (ADR-0103): a backend that calls another API
+  "httpx>=0.27",
 ]
 
 [project.urls]

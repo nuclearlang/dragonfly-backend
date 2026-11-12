@@ -1,3 +1,4 @@
+LICENSE
 pyproject.toml
 src/dragonfly/__init__.py
 src/dragonfly/ai.py
@@ -5,7 +6,9 @@ src/dragonfly/app.py
 src/dragonfly/config.py
 src/dragonfly/errors.py
 src/dragonfly/events.py
+src/dragonfly/http.py
 src/dragonfly/inject.py
+src/dragonfly/migrate.py
 src/dragonfly/orm.py
 src/dragonfly/py.typed
 src/dragonfly/repository.py
@@ -19,4 +22,6 @@ src/dragonfly_py.egg-info/dependency_links.txt
 src/dragonfly_py.egg-info/requires.txt
 src/dragonfly_py.egg-info/top_level.txt
 tests/test_data.py
+tests/test_http.py
+tests/test_migrate.py
 tests/test_runtime.py

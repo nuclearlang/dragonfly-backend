@@ -230,6 +230,29 @@ class TaskRepository(Repository[Task]):
         return q.paginate(page, size)
 ```
 
+An HTTP repository (another API, ADR-0103; spec/backend.md §2.2): an `HttpRepository` that sends each call through
+the `Http` connection (httpx) and validates the answer against the declared type (pydantic):
+
+```nuclear
+@repository(path = "character")
+repository CharacterRepository
+  @get(path = ":id")
+  one(id: int) Result<Error, Character>
+```
+
+```python
+from __future__ import annotations
+
+from dragonfly import AppError, HttpRepository, Result
+
+
+class CharacterRepository(HttpRepository):
+    path = "character"
+
+    async def one(self, id: int) -> Result[AppError, Character]:
+        return await self.send("GET", ":id", { "id": id }, Character)
+```
+
 ### 2.3 Model
 
 What the API reads and answers: a pydantic model (in `domain/models/` by folder). The same rule decorators as the nestjs dialect and Dragonfly's forms become pydantic constraints: `@required`, `@minLength(n)`, `@maxLength(n)`, `@min(n)`, `@max(n)`, `@pattern(r"...")`, `@email`, `@url`. An invalid body is a 422.

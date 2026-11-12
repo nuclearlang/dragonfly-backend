@@ -44,6 +44,9 @@
 {{#decor.max}}
 @Max({{decor.max.arg}})
 {{/decor.max}}
+{{#decor.key}}
+@Expose({ name: {{decor.key.arg}} })
+{{/decor.key}}
 {{#decor.pattern}}
 @Matches({{decor.pattern.arg}})
 {{/decor.pattern}}

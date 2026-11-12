@@ -186,7 +186,7 @@ export class Tag extends Entity {
 
 ### 2.2 Repository
 
-The data of one entity: `NameRepository` works on `Name` (or `@repository(Entity)`); Nest injects its Sequelize model. It brings `find(id)` (`Ok(entity)` / `Err(NotFound)`), `findAll()`, `save(entity)` and `remove(id)`. Each method's lines build ONE query, created for that call (`q`): `where({...})` (equality, or `gt`, `gte`, `lt`, `lte`, `ne`, `like`, `iLike`, `oneOf`, `isNull`, `between`), `orderBy(field, true)` (descending), `limit(n)`, `offset(n)`, `relations("tasks", "tasks.tags")` (the relations to load); the last line runs it: `getOne()` (`Result`), `getMany()`, `paginate(page, size)` (`Page<T>`: `items`, `page` from 1, `size`, `total`, `pages`), `count()`, `exists()`, `update({...})`, `delete()`. The caller awaits it: `~tasks.byTitle(title)`.
+The data of one entity: `NameRepository` works on `Name` (or `@repository(Entity)`); Nest injects its Sequelize model. It brings `find(id)` (`Ok(entity)` / `Err(NotFound)`), `findAll()`, `save(entity)` and `remove(id)`. Each method's lines build ONE query, created for that call (`q`): `where({...})` (equality, or `gt`, `gte`, `lt`, `lte`, `ne`, `like`, `ilike`, `oneOf`, `isNull`, `between`), `orderBy(field, desc = true)`, `limit(n)`, `offset(n)`, `relations("tasks", "tasks.tags")` (the relations to load); the last line runs it: `getOne()` (`Result`), `getMany()`, `paginate(page, size)` (`Page<T>`: `items`, `page` from 1, `size`, `total`, `pages`), `count()`, `exists()`, `update({...})`, `delete()`. The caller awaits it: `~tasks.byTitle(title)`.
 
 ```nuclear
 repository TaskRepository
@@ -272,6 +272,30 @@ export class TaskRepository extends Repository<Task> {
     const q = this.query();
     q.orderBy('id');
     return q.paginate(page, size);
+  }
+}
+```
+
+An HTTP repository (another API, ADR-0103; spec/backend.md §2.2): an `HttpRepository` that sends each call through
+the `Http` connection (fetch); the answer is the JSON as the declared type:
+
+```nuclear
+@repository(path = "character")
+repository CharacterRepository
+  @get(path = ":id")
+  one(id: int) Result<Error, Character>
+```
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { AppError, HttpRepository, Result } from 'dragonfly-nest';
+
+@Injectable()
+export class CharacterRepository extends HttpRepository {
+  override path = 'character';
+
+  async one(id: number): Promise<Result<AppError, Character>> {
+    return this.send('GET', ':id', { id });
   }
 }
 ```

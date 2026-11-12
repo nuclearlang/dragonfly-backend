@@ -9,6 +9,7 @@ import { ProjectConfig } from './config/project_config.js';
 import { Project } from './components/tasks/data/entities/project.js';
 import { Tag } from './components/tasks/data/entities/tag.js';
 import { Task } from './components/tasks/data/entities/task.js';
+import { HolidayRepository } from './components/tasks/data/repositories/holiday_repository.js';
 import { ProjectRepository } from './components/tasks/data/repositories/project_repository.js';
 import { TaskRepository } from './components/tasks/data/repositories/task_repository.js';
 import { CloseProject } from './components/tasks/domain/usecases/close_project.js';
@@ -48,7 +49,7 @@ export class AssistantModule {}
 @Module({
   imports: [SequelizeModule.forFeature([Project, Tag, Task])],
   controllers: [ProjectsController, TasksController],
-  providers: [ProjectRepository, TaskRepository, CloseProject, CreateProject, CreateTask, DeleteTask, GetProject, GetTask, ListTasks, PageTasks, UpdateTask, TaskEvents, TasksAppComponent],
+  providers: [HolidayRepository, ProjectRepository, TaskRepository, CloseProject, CreateProject, CreateTask, DeleteTask, GetProject, GetTask, ListTasks, PageTasks, UpdateTask, TaskEvents, TasksAppComponent],
   exports: [TasksAppComponent],
 })
 export class TasksModule {}

@@ -17,6 +17,8 @@ decorators = [
   "controller", "get", "post", "put", "patch", "delete", "status",
   "consumer", "start", "next", "state", "test",
   "required", "email", "url", "minLength", "maxLength", "min", "max", "pattern",
+  # a model field's name in the JSON when it is not the field's (`@key("air_date")`)
+  "key",
 ]
 plugins = ["sqlite", "postgres", "mysql", "mariadb", "redis", "kafka", "events", "ai", "openai", "ollama", "chroma"]
 
@@ -43,3 +45,378 @@ joinColumn = { sibling = "{name}Id" }
 # N0309: a removed decorator and what replaces it
 [decorators.replaced]
 generated = "@primary(generated = true) (ADR-0100)"
+
+# Where each kind's file goes (`nuclear help layout --dialect <d>`): what `dragonfly make` and agents follow.
+# {component} is the component's folder, {screen} the screen's folder (views and their managers), {file} the
+# declaration's name in snake_case.
+[layout]
+appConfig = "config/project_config.nuc"
+config = "components/{component}/config/{component}_config.nuc"
+entity = "components/{component}/data/entities/{file}.nuc"
+repository = "components/{component}/data/repositories/{file}.nuc"
+model = "components/{component}/domain/models/{file}.nuc"
+usecase = "components/{component}/domain/usecases/{file}.nuc"
+service = "components/{component}/domain/services/{file}.nuc"
+aggregate = "components/{component}/domain/aggregates/{file}.nuc"
+appcomponent = "components/{component}/{component}_appcomponent.nuc"
+controller = "components/{component}/api/{file}.nuc"
+listener = "components/{component}/events/{file}.nuc"
+tools = "components/{component}/ai/{file}.nuc"
+agent = "components/{component}/ai/{file}.nuc"
+graph = "components/{component}/ai/{file}.nuc"
+state = "components/{component}/ai/states/{file}.nuc"
+tests = "test/{file}.nuc"
+
+# What `dragonfly make <kind> <component> <Name>` writes at the kind's [layout] path: the smallest file of the kind that
+# compiles, with a doc comment to replace by the declaration's business description (the project map shows it).
+# {{Name}}: the name as given (PascalCase), {{name}}: camelCase, {{component}} / {{Component}}, {{table}}: the name in
+# snake_case plural.
+[skeletons]
+entity = """
+// What a {{Name}} is.
+@entity("{{table}}")
+{{Name}}()
+  @primary(generated = true)
+  id: int
+"""
+repository = """
+// The queries of {{Name}}.
+repository {{Name}}
+"""
+model = """
+// What {{Name}} carries.
+{{Name}}
+"""
+usecase = """
+// What {{Name}} does.
+usecase {{Name}}()
+  exec() Result<Error, string>
+    Ok("")
+"""
+service = """
+// The rules {{Name}} gives the use cases.
+service {{Name}}()
+"""
+aggregate = """
+// What {{Name}} keeps consistent.
+aggregate {{Name}}()
+"""
+appcomponent = """
+// What the rest of the app sees of {{component}}.
+appcomponent {{Name}}
+"""
+controller = """
+// The {{component}} API.
+@controller("{{component}}")
+controller {{Name}}()
+"""
+listener = """
+// What {{Name}} does with the events it receives.
+listener {{Name}}()
+"""
+tools = """
+// The tools an agent uses ({{Name}}): each method with a doc comment is one tool.
+tools {{Name}}()
+"""
+agent = """
+// What {{Name}} answers.
+agent {{Name}}()
+  prompt: string = "You help with {{component}}."
+"""
+state = """
+// The state of a graph.
+{{Name}}
+  input: string
+"""
+config = """
+// The connections of {{component}}.
+config {{Name}}
+"""
+tests = """
+// The tests of {{component}}.
+tests {{Name}}
+"""
+
+# What `dragonfly gen` writes (ADR-0103): finished code from a resource's data, the same Nuclear for every dialect.
+# Each piece is a file at its kind's [layout] place; `name` is the declaration (the file is it in snake_case), `when`
+# a value that must be true, `each` a list (one file per item), `merge` adds the lines a facade lacks. The values:
+# Name/name, Names/names (plural), component/Component, fields (name, type, optional, id, last, sample), data (the
+# fields without the key), models (Model, fields, main), rest/db, path, baseUrl, paged, Page, items, idType,
+# actions.<action>, each_action (action, UseCase, alias, is.<action>), screen/Screen.
+# How `gen` writes the connection of an HTTP resource: the default one, or a named one when the app has another.
+[gen]
+http = 'Http(baseUrl = "{{baseUrl}}")'
+http_named = 'Http(name = "{{name}}", baseUrl = "{{baseUrl}}")'
+
+[[generators.component]]
+kind = "appcomponent"
+name = "{{Component}}AppComponent"
+merge = true
+template = """
+// What the rest of the app sees of {{component}}: an alias for each of its use cases.
+appcomponent {{Component}}AppComponent
+"""
+
+[[generators.resource]]
+kind = "model"
+each = "models"
+when = "rest"
+name = "{{Model}}"
+template = """
+// {{Model}}, as the API answers it.
+{{Model}}
+{{#fields}}
+{{#key}}
+  @key("{{key}}")
+{{/key}}
+  {{name}}{{#optional}}?{{/optional}}: {{type}}
+{{/fields}}
+"""
+
+[[generators.resource]]
+kind = "entity"
+when = "db"
+name = "{{Name}}"
+template = """
+// What a {{name}} is: a row of the table {{names}}.
+@entity("{{names|snake}}")
+{{Name}}()
+  @primary(generated = true)
+  id: int
+{{#data}}
+  {{name}}{{#optional}}?{{/optional}}: {{type}}
+{{/data}}
+"""
+
+[[generators.resource]]
+kind = "model"
+when = "db"
+name = "New{{Name}}"
+template = """
+// What it takes to add or change a {{name}}.
+New{{Name}}
+{{#data}}
+  {{name}}{{#optional}}?{{/optional}}: {{type}}
+{{/data}}
+"""
+
+[[generators.resource]]
+kind = "repository"
+when = "rest"
+name = "{{Name}}Repository"
+template = """
+// The {{names}} of the API ({{path}}).
+@repository(path = "{{path}}"{{#connection}}, connection = "{{connection}}"{{/connection}})
+repository {{Name}}Repository
+{{#actions.list}}
+  @get
+  {{#paged}}page(page: int) Result<Error, {{Page}}>{{/paged}}{{^paged}}all() Result<Error, {{Name}}[]>{{/paged}}
+
+{{/actions.list}}
+{{#actions.get}}
+  @get(path = ":id")
+  one(id: {{idType}}) Result<Error, {{Name}}>
+
+{{/actions.get}}
+{{#actions.search}}
+  @get
+  search(name: string) Result<Error, {{#paged}}{{Page}}{{/paged}}{{^paged}}{{Name}}[]{{/paged}}>
+
+{{/actions.search}}
+{{#actions.create}}
+  @post
+  create(input: {{Name}}) Result<Error, {{Name}}>
+
+{{/actions.create}}
+{{#actions.update}}
+  @put(path = ":id")
+  update(id: {{idType}}, input: {{Name}}) Result<Error, {{Name}}>
+
+{{/actions.update}}
+{{#actions.delete}}
+  @delete(path = ":id")
+  remove(id: {{idType}}) Result<Error, boolean>
+{{/actions.delete}}
+"""
+
+[[generators.resource]]
+kind = "repository"
+when = "db"
+name = "{{Name}}Repository"
+template = """
+// The {{names}} of the database: find, findAll, save and remove come with it.
+repository {{Name}}Repository
+  page(page: int, size: int = 20) Page<{{Name}}>
+    orderBy("id")
+    paginate(page, size)
+"""
+
+[[generators.resource]]
+kind = "usecase"
+each = "each_action"
+name = "{{UseCase}}"
+template = """
+{{#is.list}}
+// One page of {{names}}.
+usecase {{UseCase}}(repository: {{Name}}Repository)
+{{#rest}}
+{{#paged}}
+  exec(page: int) Result<Error, {{Name}}[]>
+    found = ~repository.page(page)
+    Ok(found.{{items}})
+{{/paged}}
+{{^paged}}
+  exec() Result<Error, {{Name}}[]>
+    ~repository.all()
+{{/paged}}
+{{/rest}}
+{{#db}}
+  exec(page: int) Result<Error, {{Name}}[]>
+    found = ~repository.page(page, 20)
+    Ok(found.items)
+{{/db}}
+{{/is.list}}
+{{#is.get}}
+// One {{name}} by its id; NotFound (404) when there is none.
+usecase {{UseCase}}(repository: {{Name}}Repository)
+  exec(id: {{idType}}) Result<Error, {{Name}}>
+    ~repository.{{#rest}}one{{/rest}}{{#db}}find{{/db}}(id)
+{{/is.get}}
+{{#is.search}}
+// The {{names}} whose name matches.
+usecase {{UseCase}}(repository: {{Name}}Repository)
+  exec(name: string) Result<Error, {{Name}}[]>
+{{#paged}}
+    found = ~repository.search(name)
+    Ok(found.{{items}})
+{{/paged}}
+{{^paged}}
+    ~repository.search(name)
+{{/paged}}
+{{/is.search}}
+{{#is.create}}
+// Adds a {{name}}.
+usecase {{UseCase}}(repository: {{Name}}Repository)
+{{#rest}}
+  exec(input: {{Name}}) Result<Error, {{Name}}>
+    ~repository.create(input)
+{{/rest}}
+{{#db}}
+  exec(input: New{{Name}}) Result<Error, {{Name}}>
+    Ok(~repository.save({{Name}}({{#data}}{{name}} = input.{{name}}{{^last}}, {{/last}}{{/data}})))
+{{/db}}
+{{/is.create}}
+{{#is.update}}
+// Changes a {{name}}; NotFound (404) when there is none.
+usecase {{UseCase}}(repository: {{Name}}Repository)
+{{#rest}}
+  exec(id: {{idType}}, input: {{Name}}) Result<Error, {{Name}}>
+    ~repository.update(id, input)
+{{/rest}}
+{{#db}}
+  exec(id: int, input: New{{Name}}) Result<Error, {{Name}}>
+    found = ~repository.find(id)
+{{#data}}
+    found.{{name}} = input.{{name}}
+{{/data}}
+    Ok(~repository.save(found))
+{{/db}}
+{{/is.update}}
+{{#is.delete}}
+// Removes a {{name}}; NotFound (404) when there is none.
+usecase {{UseCase}}(repository: {{Name}}Repository)
+  exec(id: {{idType}}) Result<Error, boolean>
+{{#rest}}
+    ~repository.remove(id)
+{{/rest}}
+{{#db}}
+    found = ~repository.find(id)
+    ~repository.remove(found.id)
+    Ok(true)
+{{/db}}
+{{/is.delete}}
+"""
+
+[[generators.resource]]
+kind = "appcomponent"
+merge = true
+name = "{{Component}}AppComponent"
+template = """
+// What the rest of the app sees of {{component}}: an alias for each of its use cases.
+appcomponent {{Component}}AppComponent
+{{#each_action}}
+  {{alias}}() = {{UseCase}}.exec
+{{/each_action}}
+"""
+
+[[generators.resource]]
+kind = "controller"
+name = "{{Names}}Controller"
+template = """
+// The routes of {{names}}.
+@controller("{{names|kebab}}")
+controller {{Names}}Controller(app: {{Component}}AppComponent)
+{{#actions.list}}
+  @get
+  list({{listParam}}) Result<Error, {{Name}}[]>
+    ~app.list{{Names}}({{listArg}})
+
+{{/actions.list}}
+{{#actions.search}}
+  @get("search")
+  search(name: string) Result<Error, {{Name}}[]>
+    ~app.search{{Names}}(name)
+
+{{/actions.search}}
+{{#actions.get}}
+  @get("{id}")
+  one(id: {{idType}}) Result<Error, {{Name}}>
+    ~app.get{{Name}}(id)
+
+{{/actions.get}}
+{{#actions.create}}
+  @post
+  create(input: {{#db}}New{{/db}}{{Name}}) Result<Error, {{Name}}>
+    ~app.create{{Name}}(input)
+
+{{/actions.create}}
+{{#actions.update}}
+  @put("{id}")
+  update(id: {{idType}}, input: {{#db}}New{{/db}}{{Name}}) Result<Error, {{Name}}>
+    ~app.update{{Name}}(id, input)
+
+{{/actions.update}}
+{{#actions.delete}}
+  @delete("{id}")
+  remove(id: {{idType}}) Result<Error, boolean>
+    ~app.delete{{Name}}(id)
+{{/actions.delete}}
+"""
+
+[[generators.resource]]
+kind = "tests"
+when = "db"
+name = "{{Names}}Test"
+template = """
+// The tests of {{names}}: the database is in memory and empty in each test.
+tests {{Names}}Test
+{{#actions.create}}
+  @test("adds a {{name}} and finds it")
+  addsAndFinds() void
+    app = inject<{{Component}}AppComponent>()
+    made = ~app.create{{Name}}(New{{Name}}({{#data}}{{name}} = {{sample}}{{^last}}, {{/last}}{{/data}}))
+    expect(made.isOk)
+{{#actions.get}}
+    found = ~app.get{{Name}}(made.value.id)
+    expect(found.isOk)
+{{/actions.get}}
+
+{{/actions.create}}
+{{#actions.get}}
+  @test("a missing {{name}} is not found")
+  missing() void
+    app = inject<{{Component}}AppComponent>()
+    found = ~app.get{{Name}}(999)
+    expect(found.error.status == 404)
+{{/actions.get}}
+"""
