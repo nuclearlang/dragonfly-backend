@@ -42,6 +42,10 @@ class HeroController:
     async def strong(self, minimum: int) -> list[Hero]:
         return await self.repo.strong(minimum)
 
+    @get("/total")
+    async def total(self) -> int:
+        return await self.repo.count()
+
 
 class Config(AppConfig):
     connections = [SQLite("unused.db")]
@@ -56,6 +60,8 @@ async def test_crud_query_and_controller() -> None:
         assert (await http.get(f"/heroes/{a.json()['id']}")).json()["name"] == "Rick"
         assert (await http.get("/heroes/99")).status_code == 404
         assert [h["name"] for h in (await http.get("/heroes/strong/1")).json()] == ["Morty", "Rick"]
+        # a fixed segment wins over `{id}`, though its method comes after `one`
+        assert (await http.get("/heroes/total")).json() == 2
         repo = inject(HeroRepository)
         assert await repo.where({"name": "Rick"}).count() == 1
         one = await repo.where(name="Morty").get_one()

@@ -4,7 +4,25 @@ import { describe, it } from 'node:test';
 import { Sequelize } from 'sequelize-typescript';
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
 import { lastValueFrom, of } from 'rxjs';
+import { Controller, Get, Module, Param } from '@nestjs/common';
 import { Err, NotFound, Ok, Repository, ResultInterceptor, gt, oneOf } from '../src/index.js';
+import { startTestApp, stopTestApp } from '../src/testing.js';
+
+@Controller('heroes')
+class HeroController {
+  @Get(':id')
+  one(@Param('id') id: string): string {
+    return `hero ${id}`;
+  }
+
+  @Get('total')
+  total(): string {
+    return 'total';
+  }
+}
+
+@Module({ controllers: [HeroController] })
+class HeroModule {}
 
 @Table({ tableName: 'heroes', timestamps: false })
 class Hero extends Model {
@@ -30,6 +48,19 @@ describe('dragonfly-nest', () => {
     assert.ok(await repo.remove(rick.id));
     assert.equal(await repo.count(), 1);
     await db.close();
+  });
+
+  it('a fixed segment wins over a parameter, whatever the order of the routes', async () => {
+    const app = await startTestApp(HeroModule);
+    await app.listen(0);
+    const base = (await app.getUrl()).replace('[::1]', '127.0.0.1');
+    try {
+      assert.equal(await (await fetch(`${base}/heroes/total`)).text(), 'total');
+      assert.equal(await (await fetch(`${base}/heroes/7`)).text(), 'hero 7');
+    } finally {
+      // a server left open would keep the test runner waiting
+      await stopTestApp(app);
+    }
   });
 
   it('answers a Result: its value, or the error status', async () => {

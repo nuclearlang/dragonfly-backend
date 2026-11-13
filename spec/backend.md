@@ -245,7 +245,8 @@ HTTP routes. `@controller("tasks")` is the prefix; `@get`, `@post`, `@put`, `@pa
 relative to it: `@get()` is the prefix itself, `@get("{id}")` binds `{id}` to the parameter `id`, `@post("plan")`
 adds a segment. Paths are segments: no leading slash. A parameter that is a model is the body; a parameter named
 in the path is a path parameter; any other parameter is a query parameter (optional when `T?` or defaulted).
-`@status(201)` changes the success status. A `Result` answer becomes the value or its error's status.
+`@status(201)` changes the success status. A `Result` answer becomes the value or its error's status. The order of
+the routes does not matter: a fixed segment wins over a parameter (`page` is never taken by `{id}`).
 
 ```nuclear
 @controller("tasks")
@@ -390,12 +391,22 @@ graph Planner(tasks: TasksAppComponent)
 case per action (`--actions list,get,search,create,update,delete`), their aliases in the facade, and the controller with the routes; a database resource also gets its tests. The fields
 come from an example answer (`--from-json <file|url>`), a spec (`--from-spec <spec.md>`: its example answer, else its
 `Key | Type` table; a `GET https://...` line gives the API) or `--fields "id:int name:string"`. A file that exists is
-never overwritten (the facade gets only the missing aliases); a name another file declares stops it before it writes.
-`dragonfly gen inspect` answers what the project has. The agent writes only what is not standard: a use case with
-its own rules, a view's details.
+never overwritten (the facade, the repository and the controller get only the members they lack, so an action added to a resource that exists is finished); a name another file declares stops it before it writes.
+`dragonfly gen inspect` answers what the project has. A stored resource gets no `search`: which column is searched is
+a decision, so it is a query of the repository wired with `dragonfly gen usecase --calls`. The agent writes only what
+is not standard: a use case with its own rules, a view's details.
+
+`dragonfly gen usecase <component> <Name>` wires a use case into its component: its alias in the facade and, with
+`--route "POST orders/{id}/cancel"`, its route in the controller of the route's prefix (`OrdersController`, made
+when missing; a `{name}` of the path is a parameter of the use case). The use case is one the project declares (its
+rules are written first; its signature is read, and its route calls it with `~` when its `exec` awaits), or, with
+`--calls <Repository>.<method>`, it is written too: all it does is call that method, which a repository of the
+project declares (an answer that is not a `Result` goes inside an `Ok`).
 
 ```sh
 dragonfly gen resource characters Character --from-json https://rickandmortyapi.com/api/character
+dragonfly gen usecase orders CancelOrder --route "POST orders/{id}/cancel"       # CancelOrder is in the project
+dragonfly gen usecase catalog PageBooks --calls BookRepository.page --route "GET shelves/{page}"
 ```
 
 ### 2.14 Tests

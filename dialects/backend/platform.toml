@@ -202,6 +202,7 @@ New{{Name}}
 
 [[generators.resource]]
 kind = "repository"
+merge = true
 when = "rest"
 name = "{{Name}}Repository"
 template = """
@@ -241,6 +242,7 @@ repository {{Name}}Repository
 
 [[generators.resource]]
 kind = "repository"
+merge = true
 when = "db"
 name = "{{Name}}Repository"
 template = """
@@ -351,6 +353,7 @@ appcomponent {{Component}}AppComponent
 
 [[generators.resource]]
 kind = "controller"
+merge = true
 name = "{{Names}}Controller"
 template = """
 // The routes of {{names}}.
@@ -419,4 +422,56 @@ tests {{Names}}Test
     found = ~app.get{{Name}}(999)
     expect(found.error.status == 404)
 {{/actions.get}}
+"""
+
+# What `dragonfly gen usecase <component> <Name>` writes: a use case wired into its component. One with rules of its
+# own is written by hand first, and this wires it; `--calls Repository.method` writes one that only calls that method
+# (`result`: the method answers a Result; `plain`: its answer goes inside an Ok). The values: UseCase, alias,
+# component/Component, params ("id: int, input: Order"), args ("id, input"), error and value (of its Result<error,
+# value>), async (exec uses `~`: its route calls it with `~`), Repository, method, route, verb, prefix, path,
+# Controller, app (the controller's name for the facade).
+[[generators.usecase]]
+kind = "usecase"
+when = "result"
+name = "{{UseCase}}"
+template = """
+// What {{Repository}}.{{method}} answers, for the rest of {{component}}.
+usecase {{UseCase}}(repository: {{Repository}})
+  exec({{params}}) Result<{{error}}, {{value}}>
+    ~repository.{{method}}({{args}})
+"""
+
+[[generators.usecase]]
+kind = "usecase"
+when = "plain"
+name = "{{UseCase}}"
+template = """
+// What {{Repository}}.{{method}} answers, for the rest of {{component}}.
+usecase {{UseCase}}(repository: {{Repository}})
+  exec({{params}}) Result<{{error}}, {{value}}>
+    Ok(~repository.{{method}}({{args}}))
+"""
+
+[[generators.usecase]]
+kind = "appcomponent"
+merge = true
+name = "{{Component}}AppComponent"
+template = """
+// What the rest of the app sees of {{component}}: an alias for each of its use cases.
+appcomponent {{Component}}AppComponent
+  {{alias}}() = {{UseCase}}.exec
+"""
+
+[[generators.usecase]]
+kind = "controller"
+when = "route"
+merge = true
+name = "{{Controller}}"
+template = """
+// The routes of {{prefix}}.
+@controller("{{prefix}}")
+controller {{Controller}}({{app}}: {{Component}}AppComponent)
+  @{{verb}}{{#path}}("{{path}}"){{/path}}
+  {{alias}}({{params}}) Result<{{error}}, {{value}}>
+    {{#async}}~{{/async}}{{app}}.{{alias}}({{args}})
 """

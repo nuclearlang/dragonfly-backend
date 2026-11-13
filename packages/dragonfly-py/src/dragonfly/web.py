@@ -183,14 +183,14 @@ def _endpoint(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def router_of(instance: object) -> APIRouter:
-    """The FastAPI router of a controller instance."""
+    """The FastAPI router of a controller instance. A fixed segment wins over a parameter whatever the order of the
+    routes (`search` over `{id}`): FastAPI takes the first route that matches, so a route with a parameter earlier in
+    its path is added later."""
     cls = type(instance)
     router = APIRouter(prefix=getattr(cls, "__dragonfly_prefix__", ""), tags=getattr(cls, "__dragonfly_tags__", None))
-    for name in dir(cls):
-        route = getattr(getattr(cls, name, None), "__dragonfly_route__", None)
-        if route is None:
-            continue
-        method, path, route_status = route
+    routes = [(name, r) for name in dir(cls) if (r := getattr(getattr(cls, name, None), "__dragonfly_route__", None)) is not None]
+    routes.sort(key=lambda found: [segment.startswith("{") for segment in found[1][1].split("/")])
+    for name, (method, path, route_status) in routes:
         status = getattr(getattr(cls, name, None), "__dragonfly_status__", None) or route_status
         endpoint = _endpoint(getattr(instance, name))
         kw: dict[str, Any] = {"status_code": status} if status else {}

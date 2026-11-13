@@ -8,6 +8,8 @@ import {
   NestInterceptor,
   ValidationPipe,
 } from '@nestjs/common';
+import { ModulesContainer } from '@nestjs/core';
+import 'reflect-metadata';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Observable, map } from 'rxjs';
@@ -29,12 +31,36 @@ export class ResultInterceptor implements NestInterceptor {
   }
 }
 
-/** What every Dragonfly app has: validated bodies (class-validator), Result answers and the contract it was built with. */
+/** What every Dragonfly app has: validated bodies (class-validator), Result answers, routes whose order does not
+ * matter and the contract it was built with. */
 export function configureApp(app: INestApplication): INestApplication {
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   app.useGlobalInterceptors(new ResultInterceptor());
+  fixedRoutesFirst(app);
   serveContract(app);
   return app;
+}
+
+/** A fixed segment wins over a parameter whatever the order of a controller's routes (`search` over `:id`): Nest adds
+ * the routes in the order of the class's methods, so a method whose path has a parameter earlier is moved later. */
+function fixedRoutesFirst(app: INestApplication): void {
+  // 'path' is Nest's PATH_METADATA: what @Get, @Post... keep on the method
+  const shape = (method: unknown) => String(Reflect.getMetadata('path', method as object)).split('/').filter(Boolean).map((s) => (s.startsWith(':') ? '1' : '0')).join('');
+  for (const module of app.get(ModulesContainer).values()) {
+    for (const { metatype } of module.controllers.values()) {
+      const proto = (metatype as { prototype?: Record<string, unknown> } | null)?.prototype;
+      if (!proto) continue;
+      const routes = Object.getOwnPropertyNames(proto)
+        .map((name) => ({ name, at: Object.getOwnPropertyDescriptor(proto, name)! }))
+        .filter(({ at }) => typeof at.value === 'function' && Reflect.hasMetadata('path', at.value as object))
+        .map((r) => ({ ...r, shape: shape(r.at.value) }));
+      routes.sort((a, b) => (a.shape < b.shape ? -1 : a.shape > b.shape ? 1 : 0));
+      for (const { name, at } of routes) {
+        delete proto[name];
+        Object.defineProperty(proto, name, at);
+      }
+    }
+  }
 }
 
 /** GET /.nuclear/contract.json and /.nuclear/openapi.json: what the transpiler wrote next to the app (ADR-0098), so a
