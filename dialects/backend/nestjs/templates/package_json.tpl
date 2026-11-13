@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/main.js",
     "dev": "tsc -p tsconfig.json && node --enable-source-maps --watch dist/src/main.js",
-    "test": "tsc -p tsconfig.json && node --test \"dist/test/**/*.js\""
+    "test": "node -e \"require('node:fs').rmSync('dist/test', { recursive: true, force: true })\" && tsc -p tsconfig.json && node --test \"dist/test/**/*.js\""
   },
   "dependencies": {
     "@nestjs/common": "^12.0.0",
